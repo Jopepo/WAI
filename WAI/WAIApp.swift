@@ -1,14 +1,17 @@
-//
-//  WAIApp.swift
-//  WAI
-//
-//  Created by Jopepo on 19/05/2026.
-//
-
 import SwiftUI
+
+#if canImport(GoogleMobileAds)
+import GoogleMobileAds
+#endif
 
 @main
 struct WAIApp: App {
+    init() {
+        #if canImport(GoogleMobileAds)
+        MobileAds.shared.start()
+        #endif
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
