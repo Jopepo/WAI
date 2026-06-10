@@ -1,0 +1,900 @@
+{
+  "schemaVersion": "4.2",
+  "product": "WAI",
+  "concept": "Wakeup/Pickup Calculator",
+  "source": {
+    "document": "FO/CP/CRS Nº141 REV68 08JUN26",
+    "revision": "REV68",
+    "date": "2026-06-08"
+  },
+  "defaults": {
+    "airportBufferMinutes": 60,
+    "wakeUpBufferMinutes": 60,
+    "departureInput": "UTC"
+  },
+  "stations": [
+    {
+      "iata": "ACC",
+      "icao": "DGAA",
+      "city": "Accra",
+      "country": "Ghana",
+      "timeZone": "Africa/Accra",
+      "standardUtcOffset": "+00:00",
+      "summerUtcOffset": "+00:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 30
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "AMS",
+      "icao": "EHAM",
+      "city": "Amsterdam",
+      "country": "Netherlands",
+      "timeZone": "Europe/Amsterdam",
+      "standardUtcOffset": "+01:00",
+      "summerUtcOffset": "+02:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 40
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "BEL",
+      "icao": "SBBE",
+      "city": "Belém",
+      "country": "Brazil",
+      "timeZone": "America/Belem",
+      "standardUtcOffset": "-03:00",
+      "summerUtcOffset": "-03:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 55
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "BER",
+      "icao": "EDDB",
+      "city": "Berlin",
+      "country": "Germany",
+      "timeZone": "Europe/Berlin",
+      "standardUtcOffset": "+01:00",
+      "summerUtcOffset": "+02:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 25
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "BCN",
+      "icao": "LEBL",
+      "city": "Barcelona",
+      "country": "Spain",
+      "timeZone": "Europe/Madrid",
+      "standardUtcOffset": "+01:00",
+      "summerUtcOffset": "+02:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 35
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "BOS",
+      "icao": "KBOS",
+      "city": "Boston",
+      "country": "USA",
+      "timeZone": "America/New_York",
+      "standardUtcOffset": "-05:00",
+      "summerUtcOffset": "-04:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 45
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "BRU",
+      "icao": "EBBR",
+      "city": "Brussels",
+      "country": "Belgium",
+      "timeZone": "Europe/Brussels",
+      "standardUtcOffset": "+01:00",
+      "summerUtcOffset": "+02:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 35
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "BSB",
+      "icao": "SBBR",
+      "city": "Brasília",
+      "country": "Brazil",
+      "timeZone": "America/Sao_Paulo",
+      "standardUtcOffset": "-03:00",
+      "summerUtcOffset": "-03:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 30
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "CCS",
+      "icao": "SVMI",
+      "city": "Caracas",
+      "country": "Venezuela",
+      "timeZone": "America/Caracas",
+      "standardUtcOffset": "-04:00",
+      "summerUtcOffset": "-04:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 15
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "CNF",
+      "icao": "SBCF",
+      "city": "Belo Horizonte",
+      "country": "Brazil",
+      "timeZone": "America/Sao_Paulo",
+      "standardUtcOffset": "-03:00",
+      "summerUtcOffset": "-03:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 65
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "CPH",
+      "icao": "EKCH",
+      "city": "Copenhagen",
+      "country": "Denmark",
+      "timeZone": "Europe/Copenhagen",
+      "standardUtcOffset": "+01:00",
+      "summerUtcOffset": "+02:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 35
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "CUN",
+      "icao": "MMUN",
+      "city": "Cancún",
+      "country": "Mexico",
+      "timeZone": "America/Cancun",
+      "standardUtcOffset": "-05:00",
+      "summerUtcOffset": "-05:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 60
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "DSS",
+      "icao": "GOBD",
+      "city": "Dakar",
+      "country": "Senegal",
+      "timeZone": "Africa/Dakar",
+      "standardUtcOffset": "+00:00",
+      "summerUtcOffset": "+00:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 30
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "DUB",
+      "icao": "EIDW",
+      "city": "Dublin",
+      "country": "Ireland",
+      "timeZone": "Europe/Dublin",
+      "standardUtcOffset": "+00:00",
+      "summerUtcOffset": "+01:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 30
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "DUS",
+      "icao": "EDDL",
+      "city": "Düsseldorf",
+      "country": "Germany",
+      "timeZone": "Europe/Berlin",
+      "standardUtcOffset": "+01:00",
+      "summerUtcOffset": "+02:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 20
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "EWR",
+      "icao": "KEWR",
+      "city": "Newark",
+      "country": "USA",
+      "timeZone": "America/New_York",
+      "standardUtcOffset": "-05:00",
+      "summerUtcOffset": "-04:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 90
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "FAO",
+      "icao": "LPFR",
+      "city": "Faro",
+      "country": "Portugal",
+      "timeZone": "Europe/Lisbon",
+      "standardUtcOffset": "+00:00",
+      "summerUtcOffset": "+01:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 30
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "FCO",
+      "icao": "LIRF",
+      "city": "Rome",
+      "country": "Italy",
+      "timeZone": "Europe/Rome",
+      "standardUtcOffset": "+01:00",
+      "summerUtcOffset": "+02:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 35
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "FLN",
+      "icao": "SBFL",
+      "city": "Florianópolis",
+      "country": "Brazil",
+      "timeZone": "America/Sao_Paulo",
+      "standardUtcOffset": "-03:00",
+      "summerUtcOffset": "-03:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 70
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "FNC",
+      "icao": "LPMA",
+      "city": "Funchal",
+      "country": "Portugal",
+      "timeZone": "Atlantic/Madeira",
+      "standardUtcOffset": "+00:00",
+      "summerUtcOffset": "+01:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 30
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "FOR",
+      "icao": "SBFZ",
+      "city": "Fortaleza",
+      "country": "Brazil",
+      "timeZone": "America/Fortaleza",
+      "standardUtcOffset": "-03:00",
+      "summerUtcOffset": "-03:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 55
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "FRA",
+      "icao": "EDDF",
+      "city": "Frankfurt",
+      "country": "Germany",
+      "timeZone": "Europe/Berlin",
+      "standardUtcOffset": "+01:00",
+      "summerUtcOffset": "+02:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 55
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "GIG",
+      "icao": "SBGL",
+      "city": "Rio de Janeiro",
+      "country": "Brazil",
+      "timeZone": "America/Sao_Paulo",
+      "standardUtcOffset": "-03:00",
+      "summerUtcOffset": "-03:00",
+      "defaultRule": {
+        "type": "range",
+        "minTransportMinutes": 0,
+        "maxTransportMinutes": 110
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "GRU",
+      "icao": "SBGR",
+      "city": "São Paulo",
+      "country": "Brazil",
+      "timeZone": "America/Sao_Paulo",
+      "standardUtcOffset": "-03:00",
+      "summerUtcOffset": "-03:00",
+      "defaultRule": {
+        "type": "timeDependent",
+        "rules": [
+          {
+            "label": "Saturdays, Sundays and public holidays",
+            "weekendsAndHolidaysOnly": true,
+            "transportMinutes": 80
+          },
+          {
+            "label": "Weekdays",
+            "fromLocal": "00:00",
+            "toLocal": "23:59",
+            "weekdaysOnly": true,
+            "transportMinutes": 90
+          }
+        ]
+      },
+      "alternatives": [
+        {
+          "label": "TP88 / TP94",
+          "transportMinutes": 100
+        },
+        {
+          "label": "Specific locally coordinated Hotel-Airport transfer",
+          "transportMinutes": 100
+        }
+      ]
+    },
+    {
+      "iata": "GVA",
+      "icao": "LSGG",
+      "city": "Geneva",
+      "country": "Switzerland",
+      "timeZone": "Europe/Zurich",
+      "standardUtcOffset": "+01:00",
+      "summerUtcOffset": "+02:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 15
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "HAM",
+      "icao": "EDDH",
+      "city": "Hamburg",
+      "country": "Germany",
+      "timeZone": "Europe/Berlin",
+      "standardUtcOffset": "+01:00",
+      "summerUtcOffset": "+02:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 15
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "IAD",
+      "icao": "KIAD",
+      "city": "Washington",
+      "country": "USA",
+      "timeZone": "America/New_York",
+      "standardUtcOffset": "-05:00",
+      "summerUtcOffset": "-04:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 75
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "JFK",
+      "icao": "KJFK",
+      "city": "New York",
+      "country": "USA",
+      "timeZone": "America/New_York",
+      "standardUtcOffset": "-05:00",
+      "summerUtcOffset": "-04:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 75
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "JNB",
+      "icao": "FAOR",
+      "city": "Johannesburg",
+      "country": "South Africa",
+      "timeZone": "Africa/Johannesburg",
+      "standardUtcOffset": "+02:00",
+      "summerUtcOffset": "+02:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 40
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "LAX",
+      "icao": "KLAX",
+      "city": "Los Angeles",
+      "country": "USA",
+      "timeZone": "America/Los_Angeles",
+      "standardUtcOffset": "-08:00",
+      "summerUtcOffset": "-07:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 90
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "LHR",
+      "icao": "EGLL",
+      "city": "London Heathrow",
+      "country": "UK",
+      "timeZone": "Europe/London",
+      "standardUtcOffset": "+00:00",
+      "summerUtcOffset": "+01:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 40
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "LGW",
+      "icao": "EGKK",
+      "city": "London Gatwick",
+      "country": "UK",
+      "timeZone": "Europe/London",
+      "standardUtcOffset": "+00:00",
+      "summerUtcOffset": "+01:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 15
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "LIS",
+      "icao": "LPPT",
+      "city": "Lisbon",
+      "country": "Portugal",
+      "timeZone": "Europe/Lisbon",
+      "standardUtcOffset": "+00:00",
+      "summerUtcOffset": "+01:00",
+      "defaultRule": {
+        "type": "fixed",
+        "label": "City Hotel ↔ Airport/TTA",
+        "transportMinutes": 30
+      },
+      "alternatives": [
+        {
+          "label": "Expo/Airport Hotel ↔ TTA/Buildings",
+          "transportMinutes": 20
+        },
+        {
+          "label": "Cascais Hotel ↔ TAP Flight Center Cascais",
+          "transportMinutes": 30
+        },
+        {
+          "label": "Cascais Hotel ↔ TTA",
+          "transportMinutes": 60
+        }
+      ]
+    },
+    {
+      "iata": "MAD",
+      "icao": "LEMD",
+      "city": "Madrid",
+      "country": "Spain",
+      "timeZone": "Europe/Madrid",
+      "standardUtcOffset": "+01:00",
+      "summerUtcOffset": "+02:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 15
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "MAN",
+      "icao": "EGCC",
+      "city": "Manchester",
+      "country": "UK",
+      "timeZone": "Europe/London",
+      "standardUtcOffset": "+00:00",
+      "summerUtcOffset": "+01:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 45
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "MCZ",
+      "icao": "SBMO",
+      "city": "Maceió",
+      "country": "Brazil",
+      "timeZone": "America/Maceio",
+      "standardUtcOffset": "-03:00",
+      "summerUtcOffset": "-03:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 70
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "MIA",
+      "icao": "KMIA",
+      "city": "Miami",
+      "country": "USA",
+      "timeZone": "America/New_York",
+      "standardUtcOffset": "-05:00",
+      "summerUtcOffset": "-04:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 60
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "MPM",
+      "icao": "FQMA",
+      "city": "Maputo",
+      "country": "Mozambique",
+      "timeZone": "Africa/Maputo",
+      "standardUtcOffset": "+02:00",
+      "summerUtcOffset": "+02:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 30
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "MUC",
+      "icao": "EDDM",
+      "city": "Munich",
+      "country": "Germany",
+      "timeZone": "Europe/Berlin",
+      "standardUtcOffset": "+01:00",
+      "summerUtcOffset": "+02:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 30
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "MXP",
+      "icao": "LIMC",
+      "city": "Milan Malpensa",
+      "country": "Italy",
+      "timeZone": "Europe/Rome",
+      "standardUtcOffset": "+01:00",
+      "summerUtcOffset": "+02:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 60
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "NAT",
+      "icao": "SBNT",
+      "city": "Natal",
+      "country": "Brazil",
+      "timeZone": "America/Fortaleza",
+      "standardUtcOffset": "-03:00",
+      "summerUtcOffset": "-03:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 60
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "NBJ",
+      "icao": "FNBJ",
+      "city": "Luanda",
+      "country": "Angola",
+      "timeZone": "Africa/Luanda",
+      "standardUtcOffset": "+01:00",
+      "summerUtcOffset": "+01:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 90
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "OPO",
+      "icao": "LPPR",
+      "city": "Porto",
+      "country": "Portugal",
+      "timeZone": "Europe/Lisbon",
+      "standardUtcOffset": "+00:00",
+      "summerUtcOffset": "+01:00",
+      "defaultRule": {
+        "type": "timeDependent",
+        "rules": [
+          {
+            "label": "Weekday daytime",
+            "fromLocal": "09:00",
+            "toLocal": "21:00",
+            "weekdaysOnly": true,
+            "transportMinutes": 45
+          },
+          {
+            "label": "Night",
+            "fromLocal": "21:01",
+            "toLocal": "08:59",
+            "transportMinutes": 30
+          },
+          {
+            "label": "Weekend / public holiday",
+            "weekendsAndHolidaysOnly": true,
+            "transportMinutes": 30
+          }
+        ]
+      },
+      "alternatives": [
+        {
+          "label": "SEA Porto",
+          "transportMinutes": 30
+        }
+      ]
+    },
+    {
+      "iata": "ORD",
+      "icao": "KORD",
+      "city": "Chicago",
+      "country": "USA",
+      "timeZone": "America/Chicago",
+      "standardUtcOffset": "-06:00",
+      "summerUtcOffset": "-05:00",
+      "defaultRule": {
+        "type": "fixed",
+        "label": "Weekday",
+        "transportMinutes": 120
+      },
+      "alternatives": [
+        {
+          "label": "Weekend",
+          "transportMinutes": 90
+        }
+      ]
+    },
+    {
+      "iata": "ORY",
+      "icao": "LFPO",
+      "city": "Paris Orly",
+      "country": "France",
+      "timeZone": "Europe/Paris",
+      "standardUtcOffset": "+01:00",
+      "summerUtcOffset": "+02:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 30
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "PDL",
+      "icao": "LPPD",
+      "city": "Ponta Delgada",
+      "country": "Portugal",
+      "timeZone": "Atlantic/Azores",
+      "standardUtcOffset": "-01:00",
+      "summerUtcOffset": "+00:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 15
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "POA",
+      "icao": "SBPA",
+      "city": "Porto Alegre",
+      "country": "Brazil",
+      "timeZone": "America/Sao_Paulo",
+      "standardUtcOffset": "-03:00",
+      "summerUtcOffset": "-03:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 55
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "REC",
+      "icao": "SBRF",
+      "city": "Recife",
+      "country": "Brazil",
+      "timeZone": "America/Recife",
+      "standardUtcOffset": "-03:00",
+      "summerUtcOffset": "-03:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 45
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "SFO",
+      "icao": "KSFO",
+      "city": "San Francisco",
+      "country": "USA",
+      "timeZone": "America/Los_Angeles",
+      "standardUtcOffset": "-08:00",
+      "summerUtcOffset": "-07:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 55
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "SSA",
+      "icao": "SBSV",
+      "city": "Salvador",
+      "country": "Brazil",
+      "timeZone": "America/Bahia",
+      "standardUtcOffset": "-03:00",
+      "summerUtcOffset": "-03:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 50
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "TER",
+      "icao": "LPLA",
+      "city": "Terceira",
+      "country": "Portugal",
+      "timeZone": "Atlantic/Azores",
+      "standardUtcOffset": "-01:00",
+      "summerUtcOffset": "+00:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 30
+      },
+      "alternatives": [
+        {
+          "label": "HTL/APT TER-SFO flights",
+          "transportMinutes": 60
+        }
+      ]
+    },
+    {
+      "iata": "TLS",
+      "icao": "LFBO",
+      "city": "Toulouse",
+      "country": "France",
+      "timeZone": "Europe/Paris",
+      "standardUtcOffset": "+01:00",
+      "summerUtcOffset": "+02:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 15
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "TMS",
+      "icao": "FPST",
+      "city": "São Tomé",
+      "country": "São Tomé and Príncipe",
+      "timeZone": "Africa/Sao_Tome",
+      "standardUtcOffset": "+00:00",
+      "summerUtcOffset": "+00:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 45
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "WAW",
+      "icao": "EPWA",
+      "city": "Warsaw",
+      "country": "Poland",
+      "timeZone": "Europe/Warsaw",
+      "standardUtcOffset": "+01:00",
+      "summerUtcOffset": "+02:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 45
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "YUL",
+      "icao": "CYUL",
+      "city": "Montréal",
+      "country": "Canada",
+      "timeZone": "America/Toronto",
+      "standardUtcOffset": "-05:00",
+      "summerUtcOffset": "-04:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 50
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "YYZ",
+      "icao": "CYYZ",
+      "city": "Toronto",
+      "country": "Canada",
+      "timeZone": "America/Toronto",
+      "standardUtcOffset": "-05:00",
+      "summerUtcOffset": "-04:00",
+      "defaultRule": {
+        "type": "timeDependent",
+        "rules": [
+          {
+            "label": "Night STD",
+            "fromLocal": "20:00",
+            "toLocal": "06:00",
+            "transportMinutes": 75
+          },
+          {
+            "label": "Standard",
+            "fromLocal": "06:01",
+            "toLocal": "19:59",
+            "transportMinutes": 110
+          }
+        ]
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "ZRH",
+      "icao": "LSZH",
+      "city": "Zurich",
+      "country": "Switzerland",
+      "timeZone": "Europe/Zurich",
+      "standardUtcOffset": "+01:00",
+      "summerUtcOffset": "+02:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 35
+      },
+      "alternatives": []
+    }
+  ]
+}

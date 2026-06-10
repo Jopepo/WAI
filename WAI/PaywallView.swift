@@ -38,7 +38,7 @@ struct PaywallView: View {
             } else {
                 Button {
                     Task {
-                        await subscriptionManager.purchasePremium()
+                        await subscriptionManager.purchaseMonthlySubscription()
                     }
                 } label: {
                     Text(primaryButtonTitle)
@@ -46,7 +46,7 @@ struct PaywallView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(subscriptionManager.premiumProduct == nil)
+                .disabled(subscriptionManager.products.first == nil)
 
                 Button("Restore Purchases") {
                     Task {
@@ -69,7 +69,7 @@ struct PaywallView: View {
     }
 
     private var primaryButtonTitle: String {
-        if let product = subscriptionManager.premiumProduct {
+        if let product = subscriptionManager.products.first {
             return "Start Free Trial — then \(product.displayPrice)/month"
         }
 
