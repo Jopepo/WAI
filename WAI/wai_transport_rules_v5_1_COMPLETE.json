@@ -3,9 +3,9 @@
   "product": "WAI",
   "concept": "Wakeup/Pickup Calculator",
   "source": {
-    "document": "FO/CP/CRS Nº141 REV67 06MAY26",
-    "revision": "REV67",
-    "date": "2026-05-06"
+    "document": "FO/CP/CRS Nº141 REV68 08JUN26",
+    "revision": "REV68",
+    "date": "2026-06-08"
   },
   "defaults": {
     "airportBufferMinutes": 60,
@@ -42,20 +42,6 @@
       "alternatives": []
     },
     {
-      "iata": "BCN",
-      "icao": "LEBL",
-      "city": "Barcelona",
-      "country": "Spain",
-      "timeZone": "Europe/Madrid",
-      "standardUtcOffset": "+01:00",
-      "summerUtcOffset": "+02:00",
-      "defaultRule": {
-        "type": "fixed",
-        "transportMinutes": 35
-      },
-      "alternatives": []
-    },
-    {
       "iata": "BEL",
       "icao": "SBBE",
       "city": "Belém",
@@ -80,6 +66,20 @@
       "defaultRule": {
         "type": "fixed",
         "transportMinutes": 25
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "BCN",
+      "icao": "LEBL",
+      "city": "Barcelona",
+      "country": "Spain",
+      "timeZone": "Europe/Madrid",
+      "standardUtcOffset": "+01:00",
+      "summerUtcOffset": "+02:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 35
       },
       "alternatives": []
     },
@@ -178,6 +178,20 @@
       "defaultRule": {
         "type": "fixed",
         "transportMinutes": 60
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "DSS",
+      "icao": "GOBD",
+      "city": "Dakar",
+      "country": "Senegal",
+      "timeZone": "Africa/Dakar",
+      "standardUtcOffset": "+00:00",
+      "summerUtcOffset": "+00:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 30
       },
       "alternatives": []
     },
@@ -331,11 +345,32 @@
       "standardUtcOffset": "-03:00",
       "summerUtcOffset": "-03:00",
       "defaultRule": {
-        "type": "range",
-        "minTransportMinutes": 80,
-        "maxTransportMinutes": 100
+        "type": "timeDependent",
+        "rules": [
+          {
+            "label": "Saturdays, Sundays and public holidays",
+            "weekendsAndHolidaysOnly": true,
+            "transportMinutes": 80
+          },
+          {
+            "label": "Weekdays",
+            "fromLocal": "00:00",
+            "toLocal": "23:59",
+            "weekdaysOnly": true,
+            "transportMinutes": 90
+          }
+        ]
       },
-      "alternatives": []
+      "alternatives": [
+        {
+          "label": "TP88 / TP94",
+          "transportMinutes": 100
+        },
+        {
+          "label": "Specific locally coordinated Hotel-Airport transfer",
+          "transportMinutes": 100
+        }
+      ]
     },
     {
       "iata": "GVA",
@@ -422,20 +457,6 @@
       "alternatives": []
     },
     {
-      "iata": "LGW",
-      "icao": "EGKK",
-      "city": "London Gatwick",
-      "country": "UK",
-      "timeZone": "Europe/London",
-      "standardUtcOffset": "+00:00",
-      "summerUtcOffset": "+01:00",
-      "defaultRule": {
-        "type": "fixed",
-        "transportMinutes": 15
-      },
-      "alternatives": []
-    },
-    {
       "iata": "LHR",
       "icao": "EGLL",
       "city": "London Heathrow",
@@ -446,6 +467,20 @@
       "defaultRule": {
         "type": "fixed",
         "transportMinutes": 40
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "LGW",
+      "icao": "EGKK",
+      "city": "London Gatwick",
+      "country": "UK",
+      "timeZone": "Europe/London",
+      "standardUtcOffset": "+00:00",
+      "summerUtcOffset": "+01:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 15
       },
       "alternatives": []
     },
@@ -464,11 +499,11 @@
       },
       "alternatives": [
         {
-          "label": "Expo Hotel ↔ Airport/TTA",
+          "label": "Expo/Airport Hotel ↔ TTA/Buildings",
           "transportMinutes": 20
         },
         {
-          "label": "Cascais Hotel ↔ TAP Flight Center",
+          "label": "Cascais Hotel ↔ TAP Flight Center Cascais",
           "transportMinutes": 30
         },
         {
@@ -650,8 +685,21 @@
       "standardUtcOffset": "-06:00",
       "summerUtcOffset": "-05:00",
       "defaultRule": {
-        "type": "fixed",
-        "transportMinutes": 90
+        "type": "timeDependent",
+        "rules": [
+          {
+            "label": "Weekend",
+            "weekendsAndHolidaysOnly": true,
+            "transportMinutes": 90
+          },
+          {
+            "label": "Weekday",
+            "fromLocal": "00:00",
+            "toLocal": "23:59",
+            "weekdaysOnly": true,
+            "transportMinutes": 120
+          }
+        ]
       },
       "alternatives": []
     },
@@ -753,7 +801,7 @@
       },
       "alternatives": [
         {
-          "label": "TER-SFO",
+          "label": "HTL/APT TER-SFO flights",
           "transportMinutes": 60
         }
       ]
