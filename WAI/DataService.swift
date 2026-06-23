@@ -9,7 +9,7 @@ final class DataService {
     static func loadStations() -> [Station] {
 
         guard let url = Bundle.main.url(
-            forResource: "wai_transport_rules_v4_2_COMPLETE",
+            forResource: "wai_transport_rules_v5_2",
             withExtension: "json"
         ) else {
 

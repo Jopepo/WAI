@@ -107,7 +107,7 @@
       "summerUtcOffset": "+02:00",
       "defaultRule": {
         "type": "fixed",
-        "transportMinutes": 35
+        "transportMinutes": 45
       },
       "alternatives": []
     },
@@ -345,23 +345,15 @@
       "standardUtcOffset": "-03:00",
       "summerUtcOffset": "-03:00",
       "defaultRule": {
-        "type": "timeDependent",
-        "rules": [
-          {
-            "label": "Saturdays, Sundays and public holidays",
-            "weekendsAndHolidaysOnly": true,
-            "transportMinutes": 80
-          },
-          {
-            "label": "Weekdays",
-            "fromLocal": "00:00",
-            "toLocal": "23:59",
-            "weekdaysOnly": true,
-            "transportMinutes": 90
-          }
-        ]
+        "type": "fixed",
+        "label": "Weekday",
+        "transportMinutes": 90
       },
       "alternatives": [
+        {
+          "label": "Weekend / Public holiday",
+          "transportMinutes": 80
+        },
         {
           "label": "TP88 / TP94",
           "transportMinutes": 100
@@ -647,29 +639,15 @@
       "standardUtcOffset": "+00:00",
       "summerUtcOffset": "+01:00",
       "defaultRule": {
-        "type": "timeDependent",
-        "rules": [
-          {
-            "label": "Weekday daytime",
-            "fromLocal": "09:00",
-            "toLocal": "21:00",
-            "weekdaysOnly": true,
-            "transportMinutes": 45
-          },
-          {
-            "label": "Night",
-            "fromLocal": "21:01",
-            "toLocal": "08:59",
-            "transportMinutes": 30
-          },
-          {
-            "label": "Weekend / public holiday",
-            "weekendsAndHolidaysOnly": true,
-            "transportMinutes": 30
-          }
-        ]
+        "type": "fixed",
+        "label": "Weekday 09:00–21:00",
+        "transportMinutes": 45
       },
       "alternatives": [
+        {
+          "label": "Night / Weekend / Public holiday",
+          "transportMinutes": 30
+        },
         {
           "label": "SEA Porto",
           "transportMinutes": 30
@@ -685,23 +663,16 @@
       "standardUtcOffset": "-06:00",
       "summerUtcOffset": "-05:00",
       "defaultRule": {
-        "type": "timeDependent",
-        "rules": [
-          {
-            "label": "Weekend",
-            "weekendsAndHolidaysOnly": true,
-            "transportMinutes": 90
-          },
-          {
-            "label": "Weekday",
-            "fromLocal": "00:00",
-            "toLocal": "23:59",
-            "weekdaysOnly": true,
-            "transportMinutes": 120
-          }
-        ]
+        "type": "fixed",
+        "label": "Weekday",
+        "transportMinutes": 120
       },
-      "alternatives": []
+      "alternatives": [
+        {
+          "label": "Weekend / Public holiday",
+          "transportMinutes": 90
+        }
+      ]
     },
     {
       "iata": "ORY",

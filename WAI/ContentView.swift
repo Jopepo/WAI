@@ -162,30 +162,44 @@ struct ContentView: View {
     }
 
     func resultCard(_ result: CalculationResult) -> some View {
-        VStack(spacing: 10) {
-            Text("Pickup")
-                .font(.headline)
+        VStack(spacing: 14) {
+            VStack(spacing: 6) {
+                Text("Wake-up")
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
 
-            Text(result.pickup)
-                .font(.largeTitle)
-                .bold()
-                .minimumScaleFactor(0.5)
-                .lineLimit(2)
-                .multilineTextAlignment(.center)
+                Text(result.wakeup)
+                    .font(.largeTitle)
+                    .bold()
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+            }
+            .padding()
+            .frame(maxWidth: .infinity)
+            .background(.yellow.opacity(0.18))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
 
-            Text("Wake-up")
-                .font(.headline)
+            VStack(spacing: 6) {
+                Text("Pick-up")
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
 
-            Text(result.wakeup)
-                .font(.largeTitle)
-                .bold()
-                .minimumScaleFactor(0.5)
-                .lineLimit(2)
-                .multilineTextAlignment(.center)
+                Text(result.pickup)
+                    .font(.largeTitle)
+                    .bold()
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+            }
+            .padding()
+            .frame(maxWidth: .infinity)
+            .background(.red.opacity(0.16))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
         }
         .padding()
         .frame(maxWidth: .infinity)
-        .background(.blue.opacity(0.08))
+        .background(.gray.opacity(0.08))
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 
