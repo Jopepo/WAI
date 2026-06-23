@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct ContentView: View {
     let stations = DataService.loadStations()
@@ -11,6 +12,7 @@ struct ContentView: View {
     @State private var selectedMinute = 0
     @State private var showingTimePicker = false
     @State private var selectedAlternative = "__DEFAULT__"
+    @State private var showingFeedbackFallback = false
 
     var formattedTime: String {
         String(format: "%02d:%02d UTC", selectedHour, selectedMinute)
@@ -58,7 +60,9 @@ struct ContentView: View {
                         }
                     }
 
-                    Spacer(minLength: 24)
+                    Spacer(minLength: 40)
+
+                    bottomInfoSection
                 }
                 .padding()
             }
@@ -116,16 +120,60 @@ struct ContentView: View {
         .padding(.horizontal)
     }
 
+    var bottomInfoSection: some View {
+        VStack(spacing: 12) {
+            Text("Transport Times: REV69 · 23 Jun 2026")
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(.gray.opacity(0.12))
+                .clipShape(Capsule())
+
+            feedbackButton
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 8)
+        .padding(.bottom, 24)
+    }
+
+    var feedbackButton: some View {
+        Button {
+            if UIApplication.shared.canOpenURL(feedbackMailtoURL) {
+                UIApplication.shared.open(feedbackMailtoURL)
+            } else {
+                UIPasteboard.general.string = "joao.p.possidonio@gmail.com"
+                showingFeedbackFallback = true
+            }
+        } label: {
+            Label("Send feedback / report bug", systemImage: "envelope")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(.gray.opacity(0.12))
+                .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.secondary)
+        .alert("Email unavailable", isPresented: $showingFeedbackFallback) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("No email app is configured on this device. The feedback email address was copied to the clipboard.")
+        }
+    }
+
     func resultsView(for station: Station) -> some View {
         VStack(spacing: 16) {
             flightConversionCard(for: station)
 
             if !station.alternatives.isEmpty {
                 VStack(spacing: 12) {
-                    Text("Hotel / Scenario")
+                    Text("Transport option")
                         .font(.headline)
 
-                    Picker("Alternative", selection: $selectedAlternative) {
+                    Picker("Transport option", selection: $selectedAlternative) {
                         Text("Default").tag(defaultAlternativeTag)
 
                         ForEach(station.alternatives) { alternative in
@@ -163,6 +211,11 @@ struct ContentView: View {
 
     func resultCard(_ result: CalculationResult) -> some View {
         VStack(spacing: 14) {
+            Text("Transport time used: \(result.transportTime)")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundStyle(.red)
+                .frame(maxWidth: .infinity, alignment: .leading)
             VStack(spacing: 6) {
                 Text("Wake-up")
                     .font(.headline)
@@ -236,6 +289,35 @@ struct ContentView: View {
             selectedMinute: selectedMinute,
             station: station
         )
+    }
+
+    var feedbackMailtoURL: URL {
+        let subject = "WAI Feedback"
+        let station = selectedStation == "WhereAmI?" ? "No station selected" : selectedStation
+        let body = """
+        Hi João,
+
+        I want to send feedback about WAI.
+
+        Station: \(station)
+        Departure time: \(formattedTime)
+        App version: \(appVersionLabel)
+
+        Feedback / bug:
+
+        """
+
+        let encodedSubject = subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? subject
+        let encodedBody = body.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? body
+        let urlString = "mailto:joao.p.possidonio@gmail.com?subject=\(encodedSubject)&body=\(encodedBody)"
+
+        return URL(string: urlString) ?? URL(string: "mailto:joao.p.possidonio@gmail.com")!
+    }
+
+    var appVersionLabel: String {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
+        return "\(version) (\(build))"
     }
 }
 
