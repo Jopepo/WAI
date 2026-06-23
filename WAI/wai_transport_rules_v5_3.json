@@ -641,13 +641,27 @@
       "defaultRule": {
         "type": "fixed",
         "label": "Weekday 09:00–21:00",
-        "transportMinutes": 45
+        "transportMinutes": 45,
+        "conditions": [
+          {
+            "label": "Night 21:01–08:59",
+            "fromLocal": "21:01",
+            "toLocal": "08:59",
+            "transportMinutes": 30
+          },
+          {
+            "label": "Weekend",
+            "appliesOnWeekends": true,
+            "transportMinutes": 30
+          },
+          {
+            "label": "Public holiday",
+            "appliesOnPublicHolidays": true,
+            "transportMinutes": 30
+          }
+        ]
       },
       "alternatives": [
-        {
-          "label": "Night / Weekend / Public holiday",
-          "transportMinutes": 30
-        },
         {
           "label": "SEA Porto",
           "transportMinutes": 30
