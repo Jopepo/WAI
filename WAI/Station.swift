@@ -15,6 +15,7 @@ struct Station: Codable, Identifiable {
 
     let defaultRule: TransportRule
     let alternatives: [TransportAlternative]
+    let holidays: [StationHoliday]?
 }
 
 struct TransportRule: Codable {
