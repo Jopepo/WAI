@@ -15,9 +15,10 @@ struct ContentView: View {
     @State private var showingTimePicker = false
     @State private var selectedAlternative = "__DEFAULT__"
     @State private var showingFeedbackFallback = false
+    @StateObject private var historyStore = CalculationHistoryStore()
 
     var formattedTime: String {
-        String(format: "%02d:%02d %@", selectedHour, selectedMinute, timeInputReference.title)
+        String(format: "%02d:%02d", selectedHour, selectedMinute)
     }
 
     var selectedStationObject: Station? {
@@ -61,6 +62,8 @@ struct ContentView: View {
                             resultsView(for: station)
                         }
                     }
+
+                    historySection
 
                     Spacer(minLength: 40)
 
@@ -154,6 +157,70 @@ struct ContentView: View {
         .padding(.bottom, 24)
     }
 
+    var historySection: some View {
+        VStack(spacing: 12) {
+            if let lastCalculation = historyStore.lastCalculation {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Last calculation")
+                        .font(.headline)
+
+                    historyRow(lastCalculation)
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.gray.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 18))
+            }
+
+            if !historyStore.history.isEmpty {
+                DisclosureGroup("History") {
+                    VStack(spacing: 10) {
+                        ForEach(historyStore.history) { item in
+                            historyRow(item)
+                                .padding(.vertical, 4)
+                        }
+
+                        Button("Clear history", role: .destructive) {
+                            historyStore.clearHistory()
+                        }
+                        .buttonStyle(.bordered)
+                        .padding(.top, 6)
+                    }
+                    .padding(.top, 8)
+                }
+                .padding()
+                .background(.gray.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 18))
+            }
+        }
+        .padding(.horizontal)
+    }
+
+    func historyRow(_ item: CalculationHistoryItem) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("\(item.stationIATA) - \(item.stationCity)")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+
+            Text("ETD: \(formatHistoryDate(item.etdDate)) · \(item.inputTimeText) · \(item.inputReference.title)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Text("Wake-up: \(item.wakeupTimeText)")
+                .font(.caption)
+
+            Text("Pick-up: \(item.pickupTimeText)")
+                .font(.caption)
+
+            if let appliedRuleLabel = item.appliedRuleLabel {
+                Text("Rule: \(appliedRuleLabel)")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     var feedbackButton: some View {
         Button {
             if UIApplication.shared.canOpenURL(feedbackMailtoURL) {
@@ -183,15 +250,15 @@ struct ContentView: View {
     func resultsView(for station: Station) -> some View {
         VStack(spacing: 16) {
             flightConversionCard(for: station)
-
+            
             if !station.alternatives.isEmpty {
                 VStack(spacing: 12) {
                     Text("Transport option")
                         .font(.headline)
-
+                    
                     Picker("Transport option", selection: $selectedAlternative) {
                         Text("Default").tag(defaultAlternativeTag)
-
+                        
                         ForEach(station.alternatives) { alternative in
                             Text(alternative.label).tag(alternative.label)
                         }
@@ -199,9 +266,9 @@ struct ContentView: View {
                     .pickerStyle(.menu)
                 }
             }
-
+            
             if let result = calculateResult(for: station) {
-                resultCard(result)
+                resultCard(result, station: station)
             } else {
                 errorCard
             }
@@ -210,34 +277,52 @@ struct ContentView: View {
     }
 
     func flightConversionCard(for station: Station) -> some View {
-        VStack(spacing: 6) {
-            Text("Flight")
-                .font(.headline)
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Flight time entered")
+                    .font(.headline)
 
-            Text("\(formattedTime) on \(formattedETDDate) → \(localDepartureLabel(for: station))")
-                .font(.title3)
-                .bold()
-                .multilineTextAlignment(.center)
+                Text("\(formattedETDDate) · \(formattedTime) · \(timeInputReference.title)")
+                    .font(.title3)
+                    .bold()
+            }
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Converted time")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
+
+                ForEach(convertedDepartureRows(for: station), id: \.self) { row in
+                    Text(row)
+                        .font(.body)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
         }
         .padding()
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(.gray.opacity(0.10))
         .clipShape(RoundedRectangle(cornerRadius: 18))
     }
 
-    func resultCard(_ result: CalculationResult) -> some View {
+    func resultCard(_ result: CalculationResult, station: Station) -> some View {
         VStack(spacing: 14) {
             Text("Transport time used: \(result.transportTime)")
                 .font(.subheadline)
                 .fontWeight(.semibold)
                 .foregroundStyle(.red)
                 .frame(maxWidth: .infinity, alignment: .leading)
+
             if let appliedRuleLabel = result.appliedRuleLabel {
                 Text("Rule: \(appliedRuleLabel)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+
             VStack(spacing: 6) {
                 Text("Wake-up")
                     .font(.headline)
@@ -271,6 +356,15 @@ struct ContentView: View {
             .frame(maxWidth: .infinity)
             .background(.red.opacity(0.16))
             .clipShape(RoundedRectangle(cornerRadius: 16))
+
+            Button {
+                saveCalculation(result, for: station)
+            } label: {
+                Label("Save calculation", systemImage: "tray.and.arrow.down")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
         }
         .padding()
         .frame(maxWidth: .infinity)
@@ -307,6 +401,23 @@ struct ContentView: View {
         )
     }
 
+
+
+    func saveCalculation(_ result: CalculationResult, for station: Station) {
+        let item = CalculationHistoryItem(
+            stationIATA: station.iata,
+            stationCity: station.city,
+            etdDate: etdDate,
+            inputReference: timeInputReference,
+            inputTimeText: String(format: "%02d:%02d", selectedHour, selectedMinute),
+            pickupTimeText: result.pickup,
+            wakeupTimeText: result.wakeup,
+            appliedRuleLabel: result.appliedRuleLabel
+        )
+
+        historyStore.save(item)
+    }
+
     func localDepartureLabel(for station: Station) -> String {
         TimeCalculator.localDepartureLabel(
             selectedHour: selectedHour,
@@ -316,7 +427,10 @@ struct ContentView: View {
             etdDate: etdDate
         )
     }
-
+    func convertedDepartureRows(for station: Station) -> [String] {
+        localDepartureLabel(for: station)
+            .components(separatedBy: " / ")
+    }
     var feedbackMailtoURL: URL {
         let subject = "WAI Feedback"
         let station = selectedStation == "WhereAmI?" ? "No station selected" : selectedStation
@@ -346,6 +460,13 @@ struct ContentView: View {
         formatter.dateStyle = .medium
         formatter.timeStyle = .none
         return formatter.string(from: etdDate)
+    }
+
+    func formatHistoryDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter.string(from: date)
     }
 
     var appVersionLabel: String {
