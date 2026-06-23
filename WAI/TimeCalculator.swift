@@ -4,6 +4,19 @@ struct CalculationResult {
     let pickup: String
     let wakeup: String
     let transportTime: String
+    let appliedRuleLabel: String?
+
+    init(
+        pickup: String,
+        wakeup: String,
+        transportTime: String,
+        appliedRuleLabel: String? = nil
+    ) {
+        self.pickup = pickup
+        self.wakeup = wakeup
+        self.transportTime = transportTime
+        self.appliedRuleLabel = appliedRuleLabel
+    }
 }
 
 struct TimeCalculator {
@@ -18,18 +31,47 @@ struct TimeCalculator {
         defaultAlternativeTag: String,
         referenceDate: Date = Date()
     ) -> CalculationResult? {
+        calculate(
+            selectedHour: selectedHour,
+            selectedMinute: selectedMinute,
+            station: station,
+            selectedAlternative: selectedAlternative,
+            defaultAlternativeTag: defaultAlternativeTag,
+            inputReference: .utc,
+            etdDate: referenceDate,
+            stationHolidays: []
+        )
+    }
+
+    static func calculate(
+        selectedHour: Int,
+        selectedMinute: Int,
+        station: Station,
+        selectedAlternative: String,
+        defaultAlternativeTag: String,
+        inputReference: TimeInputReference,
+        etdDate: Date,
+        stationHolidays: [StationHoliday] = []
+    ) -> CalculationResult? {
         guard let stationTimeZone = TimeZone(identifier: station.timeZone) else {
             return nil
         }
 
-        let departureUTC = makeUTCDate(
+        let departureUTC = makeDepartureDate(
             hour: selectedHour,
             minute: selectedMinute,
-            referenceDate: referenceDate
+            etdDate: etdDate,
+            inputReference: inputReference,
+            stationTimeZone: stationTimeZone
         )
 
         let departureLocalMinutes = minutesOfDay(for: departureUTC, in: stationTimeZone)
         let isWeekend = isWeekend(date: departureUTC, in: stationTimeZone)
+        let isPublicHoliday = isPublicHoliday(
+            date: departureUTC,
+            in: stationTimeZone,
+            stationHolidays: stationHolidays
+        )
 
         if selectedAlternative != defaultAlternativeTag,
            let alternative = station.alternatives.first(where: { $0.label == selectedAlternative }) {
@@ -37,7 +79,23 @@ struct TimeCalculator {
                 departureUTC: departureUTC,
                 transportMinutes: alternative.transportMinutes,
                 station: station,
-                stationTimeZone: stationTimeZone
+                stationTimeZone: stationTimeZone,
+                appliedRuleLabel: alternative.label
+            )
+        }
+
+        if let condition = matchingCondition(
+            in: station.defaultRule.conditions,
+            departureLocalMinutes: departureLocalMinutes,
+            isWeekend: isWeekend,
+            isPublicHoliday: isPublicHoliday
+        ) {
+            return exactResult(
+                departureUTC: departureUTC,
+                transportMinutes: condition.transportMinutes,
+                station: station,
+                stationTimeZone: stationTimeZone,
+                appliedRuleLabel: condition.label
             )
         }
 
@@ -48,30 +106,35 @@ struct TimeCalculator {
                 departureUTC: departureUTC,
                 transportMinutes: transport,
                 station: station,
-                stationTimeZone: stationTimeZone
+                stationTimeZone: stationTimeZone,
+                appliedRuleLabel: station.defaultRule.label
             )
 
         case "timeDependent":
             guard let rules = station.defaultRule.rules else { return nil }
 
             for rule in rules {
-                if rule.weekendsAndHolidaysOnly == true {
-                    guard isWeekend else { continue }
-                    return exactResult(
-                        departureUTC: departureUTC,
-                        transportMinutes: rule.transportMinutes,
-                        station: station,
-                        stationTimeZone: stationTimeZone
-                    )
+                if rule.publicHolidaysOnly == true {
+                    guard isPublicHoliday else { continue }
                 }
 
-                if rule.weekdaysOnly == true && isWeekend {
+                if rule.weekendsAndHolidaysOnly == true {
+                    guard isWeekend || isPublicHoliday else { continue }
+                }
+
+                if rule.weekdaysOnly == true && (isWeekend || isPublicHoliday) {
                     continue
                 }
 
                 guard let fromLocal = rule.fromLocal,
                       let toLocal = rule.toLocal else {
-                    continue
+                    return exactResult(
+                        departureUTC: departureUTC,
+                        transportMinutes: rule.transportMinutes,
+                        station: station,
+                        stationTimeZone: stationTimeZone,
+                        appliedRuleLabel: rule.label
+                    )
                 }
 
                 let from = parse(time: fromLocal)
@@ -82,7 +145,8 @@ struct TimeCalculator {
                         departureUTC: departureUTC,
                         transportMinutes: rule.transportMinutes,
                         station: station,
-                        stationTimeZone: stationTimeZone
+                        stationTimeZone: stationTimeZone,
+                        appliedRuleLabel: rule.label
                     )
                 }
             }
@@ -101,9 +165,10 @@ struct TimeCalculator {
             let wakeupToUTC = pickupToUTC.addingTimeInterval(-60 * 60)
 
             return CalculationResult(
-                pickup: "\(formatRange(from: pickupFromUTC, to: pickupToUTC, station: station, stationTimeZone: stationTimeZone))",
-                wakeup: "\(formatRange(from: wakeupFromUTC, to: wakeupToUTC, station: station, stationTimeZone: stationTimeZone))",
-                transportTime: "up to \(max) min"
+                pickup: formatRange(from: pickupFromUTC, to: pickupToUTC, station: station, stationTimeZone: stationTimeZone),
+                wakeup: formatRange(from: wakeupFromUTC, to: wakeupToUTC, station: station, stationTimeZone: stationTimeZone),
+                transportTime: "up to \(max) min",
+                appliedRuleLabel: station.defaultRule.label
             )
 
         default:
@@ -117,24 +182,43 @@ struct TimeCalculator {
         station: Station,
         referenceDate: Date = Date()
     ) -> String {
+        localDepartureLabel(
+            selectedHour: selectedHour,
+            selectedMinute: selectedMinute,
+            station: station,
+            inputReference: .utc,
+            etdDate: referenceDate
+        )
+    }
+
+    static func localDepartureLabel(
+        selectedHour: Int,
+        selectedMinute: Int,
+        station: Station,
+        inputReference: TimeInputReference,
+        etdDate: Date
+    ) -> String {
         guard let stationTimeZone = TimeZone(identifier: station.timeZone) else {
             return String(format: "%02d:%02d UTC", selectedHour, selectedMinute)
         }
 
-        let departureUTC = makeUTCDate(
+        let departureUTC = makeDepartureDate(
             hour: selectedHour,
             minute: selectedMinute,
-            referenceDate: referenceDate
+            etdDate: etdDate,
+            inputReference: inputReference,
+            stationTimeZone: stationTimeZone
         )
 
-        return "\(format(departureUTC, in: stationTimeZone)) \(station.iata) / \(format(departureUTC, in: lisTimeZone)) LIS"
+        return "\(format(departureUTC, in: stationTimeZone)) \(station.iata) / \(format(departureUTC, in: lisTimeZone)) LIS / \(format(departureUTC, in: utcTimeZone)) UTC"
     }
 
     private static func exactResult(
         departureUTC: Date,
         transportMinutes: Int,
         station: Station,
-        stationTimeZone: TimeZone
+        stationTimeZone: TimeZone,
+        appliedRuleLabel: String?
     ) -> CalculationResult {
         let pickupUTC = departureUTC.addingTimeInterval(TimeInterval(-(60 + transportMinutes) * 60))
         let wakeupUTC = pickupUTC.addingTimeInterval(-60 * 60)
@@ -142,24 +226,55 @@ struct TimeCalculator {
         return CalculationResult(
             pickup: formatDualTime(pickupUTC, station: station, stationTimeZone: stationTimeZone),
             wakeup: formatDualTime(wakeupUTC, station: station, stationTimeZone: stationTimeZone),
-            transportTime: "\(transportMinutes) min"
+            transportTime: "\(transportMinutes) min",
+            appliedRuleLabel: appliedRuleLabel
         )
     }
 
-    private static func makeUTCDate(hour: Int, minute: Int, referenceDate: Date) -> Date {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = utcTimeZone
+    private static func makeDepartureDate(
+        hour: Int,
+        minute: Int,
+        etdDate: Date,
+        inputReference: TimeInputReference,
+        stationTimeZone: TimeZone
+    ) -> Date {
+        let inputTimeZone: TimeZone
 
-        let components = calendar.dateComponents([.year, .month, .day], from: referenceDate)
+        switch inputReference {
+        case .utc:
+            inputTimeZone = utcTimeZone
+        case .stationLocal:
+            inputTimeZone = stationTimeZone
+        case .lisbon:
+            inputTimeZone = lisTimeZone
+        }
 
-        return calendar.date(from: DateComponents(
-            timeZone: utcTimeZone,
-            year: components.year,
-            month: components.month,
-            day: components.day,
+        var displayCalendar = Calendar(identifier: .gregorian)
+        displayCalendar.timeZone = Calendar.current.timeZone
+
+        let dateComponents = displayCalendar.dateComponents([.year, .month, .day], from: etdDate)
+
+        var inputCalendar = Calendar(identifier: .gregorian)
+        inputCalendar.timeZone = inputTimeZone
+
+        return inputCalendar.date(from: DateComponents(
+            timeZone: inputTimeZone,
+            year: dateComponents.year,
+            month: dateComponents.month,
+            day: dateComponents.day,
             hour: hour,
             minute: minute
-        )) ?? referenceDate
+        )) ?? etdDate
+    }
+
+    private static func makeUTCDate(hour: Int, minute: Int, referenceDate: Date) -> Date {
+        makeDepartureDate(
+            hour: hour,
+            minute: minute,
+            etdDate: referenceDate,
+            inputReference: .utc,
+            stationTimeZone: utcTimeZone
+        )
     }
 
     private static func minutesOfDay(for date: Date, in timeZone: TimeZone) -> Int {
@@ -178,6 +293,56 @@ struct TimeCalculator {
 
         let weekday = calendar.component(.weekday, from: date)
         return weekday == 1 || weekday == 7
+    }
+
+    private static func isPublicHoliday(
+        date: Date,
+        in timeZone: TimeZone,
+        stationHolidays: [StationHoliday]
+    ) -> Bool {
+        let formatter = DateFormatter()
+        formatter.timeZone = timeZone
+        formatter.dateFormat = "yyyy-MM-dd"
+
+        let localDate = formatter.string(from: date)
+        return stationHolidays.contains { $0.date == localDate }
+    }
+
+    private static func matchingCondition(
+        in conditions: [TransportCondition]?,
+        departureLocalMinutes: Int,
+        isWeekend: Bool,
+        isPublicHoliday: Bool
+    ) -> TransportCondition? {
+        guard let conditions else { return nil }
+
+        for condition in conditions {
+            if condition.appliesOnPublicHolidays == true && !isPublicHoliday {
+                continue
+            }
+
+            if condition.appliesOnWeekends == true && !isWeekend {
+                continue
+            }
+
+            if condition.appliesOnWeekdays == true && (isWeekend || isPublicHoliday) {
+                continue
+            }
+
+            if let fromLocal = condition.fromLocal,
+               let toLocal = condition.toLocal {
+                let from = parse(time: fromLocal)
+                let to = parse(time: toLocal)
+
+                guard isTime(departureLocalMinutes, insideFrom: from, to: to) else {
+                    continue
+                }
+            }
+
+            return condition
+        }
+
+        return nil
     }
 
     private static func isTime(_ time: Int, insideFrom from: Int, to: Int) -> Bool {
