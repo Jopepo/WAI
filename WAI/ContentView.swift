@@ -10,12 +10,14 @@ struct ContentView: View {
     @State private var selectedStation = "WhereAmI?"
     @State private var selectedHour = 6
     @State private var selectedMinute = 0
+    @State private var etdDate = Date()
+    @State private var timeInputReference: TimeInputReference = .utc
     @State private var showingTimePicker = false
     @State private var selectedAlternative = "__DEFAULT__"
     @State private var showingFeedbackFallback = false
 
     var formattedTime: String {
-        String(format: "%02d:%02d UTC", selectedHour, selectedMinute)
+        String(format: "%02d:%02d %@", selectedHour, selectedMinute, timeInputReference.title)
     }
 
     var selectedStationObject: Station? {
@@ -71,8 +73,22 @@ struct ContentView: View {
 
     var timeInputView: some View {
         VStack(spacing: 12) {
-            Text("Flight Departure (UTC)")
+            Text("Flight Departure")
                 .font(.headline)
+
+            DatePicker(
+                "ETD date",
+                selection: $etdDate,
+                displayedComponents: .date
+            )
+            .datePickerStyle(.compact)
+
+            Picker("Time reference", selection: $timeInputReference) {
+                ForEach(TimeInputReference.allCases) { reference in
+                    Text(reference.title).tag(reference)
+                }
+            }
+            .pickerStyle(.segmented)
 
             Button {
                 showingTimePicker.toggle()
@@ -198,7 +214,7 @@ struct ContentView: View {
             Text("Flight")
                 .font(.headline)
 
-            Text("\(formattedTime) → \(localDepartureLabel(for: station))")
+            Text("\(formattedTime) on \(formattedETDDate) → \(localDepartureLabel(for: station))")
                 .font(.title3)
                 .bold()
                 .multilineTextAlignment(.center)
@@ -216,6 +232,12 @@ struct ContentView: View {
                 .fontWeight(.semibold)
                 .foregroundStyle(.red)
                 .frame(maxWidth: .infinity, alignment: .leading)
+            if let appliedRuleLabel = result.appliedRuleLabel {
+                Text("Rule: \(appliedRuleLabel)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
             VStack(spacing: 6) {
                 Text("Wake-up")
                     .font(.headline)
@@ -279,7 +301,9 @@ struct ContentView: View {
             selectedMinute: selectedMinute,
             station: station,
             selectedAlternative: selectedAlternative,
-            defaultAlternativeTag: defaultAlternativeTag
+            defaultAlternativeTag: defaultAlternativeTag,
+            inputReference: timeInputReference,
+            etdDate: etdDate
         )
     }
 
@@ -287,7 +311,9 @@ struct ContentView: View {
         TimeCalculator.localDepartureLabel(
             selectedHour: selectedHour,
             selectedMinute: selectedMinute,
-            station: station
+            station: station,
+            inputReference: timeInputReference,
+            etdDate: etdDate
         )
     }
 
@@ -300,6 +326,7 @@ struct ContentView: View {
         I want to send feedback about WAI.
 
         Station: \(station)
+        Departure date: \(formattedETDDate)
         Departure time: \(formattedTime)
         App version: \(appVersionLabel)
 
@@ -312,6 +339,13 @@ struct ContentView: View {
         let urlString = "mailto:joao.p.possidonio@gmail.com?subject=\(encodedSubject)&body=\(encodedBody)"
 
         return URL(string: urlString) ?? URL(string: "mailto:joao.p.possidonio@gmail.com")!
+    }
+
+    var formattedETDDate: String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter.string(from: etdDate)
     }
 
     var appVersionLabel: String {
