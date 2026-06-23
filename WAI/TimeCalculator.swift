@@ -21,7 +21,7 @@ struct CalculationResult {
 
 struct TimeCalculator {
     static let lisTimeZone = TimeZone(identifier: "Europe/Lisbon")!
-    static let utcTimeZone = TimeZone(secondsFromGMT: 0)!
+    static let utcTimeZone = TimeZone(identifier: "GMT")!
 
     static func calculate(
         selectedHour: Int,
@@ -380,9 +380,12 @@ struct TimeCalculator {
     }
 
     private static func format(_ date: Date, in timeZone: TimeZone) -> String {
-        let formatter = DateFormatter()
-        formatter.timeZone = timeZone
-        formatter.dateFormat = "HH:mm"
-        return formatter.string(from: date)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let hour = calendar.component(.hour, from: date)
+        let minute = calendar.component(.minute, from: date)
+
+        return String(format: "%02d:%02d", hour, minute)
     }
 }
