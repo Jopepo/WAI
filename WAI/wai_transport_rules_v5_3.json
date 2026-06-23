@@ -347,13 +347,21 @@
       "defaultRule": {
         "type": "fixed",
         "label": "Weekday",
-        "transportMinutes": 90
+        "transportMinutes": 90,
+        "conditions": [
+          {
+            "label": "Weekend",
+            "appliesOnWeekends": true,
+            "transportMinutes": 80
+          },
+          {
+            "label": "Public holiday",
+            "appliesOnPublicHolidays": true,
+            "transportMinutes": 80
+          }
+        ]
       },
       "alternatives": [
-        {
-          "label": "Weekend / Public holiday",
-          "transportMinutes": 80
-        },
         {
           "label": "TP88 / TP94",
           "transportMinutes": 100
@@ -679,14 +687,21 @@
       "defaultRule": {
         "type": "fixed",
         "label": "Weekday",
-        "transportMinutes": 120
+        "transportMinutes": 120,
+        "conditions": [
+          {
+            "label": "Weekend",
+            "appliesOnWeekends": true,
+            "transportMinutes": 90
+          },
+          {
+            "label": "Public holiday",
+            "appliesOnPublicHolidays": true,
+            "transportMinutes": 90
+          }
+        ]
       },
-      "alternatives": [
-        {
-          "label": "Weekend / Public holiday",
-          "transportMinutes": 90
-        }
-      ]
+      "alternatives": []
     },
     {
       "iata": "ORY",
