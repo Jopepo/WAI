@@ -3,9 +3,9 @@
   "product": "WAI",
   "concept": "Wakeup/Pickup Calculator",
   "source": {
-    "document": "FO/CP/CRS Nº141 REV68 08JUN26",
-    "revision": "REV68",
-    "date": "2026-06-08"
+    "document": "FO/CP/CRS Nº141 REV69 23JUN26",
+    "revision": "REV69",
+    "date": "2026-06-23"
   },
   "defaults": {
     "airportBufferMinutes": 60,

@@ -3,6 +3,7 @@ import Foundation
 struct CalculationResult {
     let pickup: String
     let wakeup: String
+    let transportTime: String
 }
 
 struct TimeCalculator {
@@ -101,7 +102,8 @@ struct TimeCalculator {
 
             return CalculationResult(
                 pickup: "\(formatRange(from: pickupFromUTC, to: pickupToUTC, station: station, stationTimeZone: stationTimeZone))",
-                wakeup: "\(formatRange(from: wakeupFromUTC, to: wakeupToUTC, station: station, stationTimeZone: stationTimeZone))"
+                wakeup: "\(formatRange(from: wakeupFromUTC, to: wakeupToUTC, station: station, stationTimeZone: stationTimeZone))",
+                transportTime: "up to \(max) min"
             )
 
         default:
@@ -139,7 +141,8 @@ struct TimeCalculator {
 
         return CalculationResult(
             pickup: formatDualTime(pickupUTC, station: station, stationTimeZone: stationTimeZone),
-            wakeup: formatDualTime(wakeupUTC, station: station, stationTimeZone: stationTimeZone)
+            wakeup: formatDualTime(wakeupUTC, station: station, stationTimeZone: stationTimeZone),
+            transportTime: "\(transportMinutes) min"
         )
     }
 
