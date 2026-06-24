@@ -397,7 +397,8 @@ struct ContentView: View {
             selectedAlternative: selectedAlternative,
             defaultAlternativeTag: defaultAlternativeTag,
             inputReference: timeInputReference,
-            etdDate: etdDate
+            etdDate: etdDate,
+            stationHolidays: station.holidays ?? []
         )
     }
 
