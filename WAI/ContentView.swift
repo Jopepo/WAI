@@ -141,7 +141,7 @@ struct ContentView: View {
 
     var bottomInfoSection: some View {
         VStack(spacing: 12) {
-            Text("Transport Times: REV69 · 23 Jun 2026")
+            Text("Transport Times: REV70 · 29 Jun 2026")
                 .font(.caption)
                 .fontWeight(.semibold)
                 .foregroundStyle(.secondary)
