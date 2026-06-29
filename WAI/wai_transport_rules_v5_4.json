@@ -3,9 +3,9 @@
   "product": "WAI",
   "concept": "Wakeup/Pickup Calculator",
   "source": {
-    "document": "FO/CP/CRS Nº141 REV69 23JUN26",
-    "revision": "REV69",
-    "date": "2026-06-23"
+    "document": "FO/CP/CRS Nº141 REV70 29JUN26",
+    "revision": "REV70",
+    "date": "2026-06-29"
   },
   "defaults": {
     "airportBufferMinutes": 60,
@@ -35,6 +35,20 @@
       "timeZone": "Europe/Amsterdam",
       "standardUtcOffset": "+01:00",
       "summerUtcOffset": "+02:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 40
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "ATH",
+      "icao": "LGAV",
+      "city": "Athens",
+      "country": "Greece",
+      "timeZone": "Europe/Athens",
+      "standardUtcOffset": "+02:00",
+      "summerUtcOffset": "+03:00",
       "defaultRule": {
         "type": "fixed",
         "transportMinutes": 40
@@ -178,6 +192,20 @@
       "defaultRule": {
         "type": "fixed",
         "transportMinutes": 60
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "CWB",
+      "icao": "SBCT",
+      "city": "Curitiba",
+      "country": "Brazil",
+      "timeZone": "America/Sao_Paulo",
+      "standardUtcOffset": "-03:00",
+      "summerUtcOffset": "-03:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 30
       },
       "alternatives": []
     },
@@ -789,6 +817,20 @@
       "alternatives": []
     },
     {
+      "iata": "RAI",
+      "icao": "GVNP",
+      "city": "Praia",
+      "country": "Cape Verde",
+      "timeZone": "Atlantic/Cape_Verde",
+      "standardUtcOffset": "-01:00",
+      "summerUtcOffset": "-01:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 20
+      },
+      "alternatives": []
+    },
+    {
       "iata": "REC",
       "icao": "SBRF",
       "city": "Recife",
@@ -799,6 +841,20 @@
       "defaultRule": {
         "type": "fixed",
         "transportMinutes": 45
+      },
+      "alternatives": []
+    },
+    {
+      "iata": "SID",
+      "icao": "GVAC",
+      "city": "Sal",
+      "country": "Cape Verde",
+      "timeZone": "Atlantic/Cape_Verde",
+      "standardUtcOffset": "-01:00",
+      "summerUtcOffset": "-01:00",
+      "defaultRule": {
+        "type": "fixed",
+        "transportMinutes": 30
       },
       "alternatives": []
     },
