@@ -17,8 +17,11 @@ struct ContentView: View {
     @State private var showingFeedbackFallback = false
     @State private var showingSettings = false
     @State private var showingHistory = false
+    @State private var showingWhatsNew = false
     @State private var showingFlightDetails = false
     @State private var didSaveCalculation = false
+    @State private var isReadyToCalculate = false
+    @State private var selectedHotel: Hotel?
     @StateObject private var historyStore = CalculationHistoryStore()
 
     var timeInputReference: TimeInputReference {
@@ -61,14 +64,25 @@ struct ContentView: View {
                     .pickerStyle(.menu)
                     .onChange(of: selectedStation) {
                         selectedAlternative = defaultAlternativeTag
+                        showingFlightDetails = false
+                        isReadyToCalculate = false
                         didSaveCalculation = false
                     }
 
                     if selectedStation != "WhereAmI?" {
-                        timeInputView
+                        if !isReadyToCalculate {
+                            timeInputView
+                        }
 
                         if let station = selectedStationObject {
-                            resultsView(for: station)
+                            if !isReadyToCalculate {
+                                transportOptionView(for: station)
+                                calculateButton
+                            }
+
+                            if isReadyToCalculate {
+                                resultsView(for: station)
+                            }
                         }
                     }
 
@@ -109,6 +123,17 @@ struct ContentView: View {
                 didSaveCalculation = false
             }
         }
+        .sheet(isPresented: $showingWhatsNew) {
+            WhatsNewView()
+        }
+        .onChange(of: showingWhatsNew) {
+            if !showingWhatsNew {
+                didSaveCalculation = false
+            }
+        }
+        .sheet(item: $selectedHotel) { hotel in
+            HotelDetailView(hotel: hotel)
+        }
     }
 
     var timeInputView: some View {
@@ -118,6 +143,7 @@ struct ContentView: View {
 
             Button {
                 showingTimePicker.toggle()
+                isReadyToCalculate = false
             } label: {
                 Text(formattedTime)
                     .font(.title2)
@@ -134,6 +160,10 @@ struct ContentView: View {
             )
             .labelsHidden()
             .datePickerStyle(.compact)
+            .onChange(of: etdDate) {
+                isReadyToCalculate = false
+                showingFlightDetails = false
+            }
 
             if showingTimePicker {
                 VStack {
@@ -145,6 +175,10 @@ struct ContentView: View {
                         }
                         .pickerStyle(.wheel)
                         .frame(width: 80)
+                        .onChange(of: selectedHour) {
+                            isReadyToCalculate = false
+                            showingFlightDetails = false
+                        }
 
                         Text(":")
                             .font(.title2)
@@ -157,6 +191,10 @@ struct ContentView: View {
                         }
                         .pickerStyle(.wheel)
                         .frame(width: 80)
+                        .onChange(of: selectedMinute) {
+                            isReadyToCalculate = false
+                            showingFlightDetails = false
+                        }
                     }
                     .frame(height: 120)
 
@@ -168,6 +206,45 @@ struct ContentView: View {
             }
         }
         .padding(.horizontal)
+    }
+
+    var calculateButton: some View {
+        Button {
+            showingTimePicker = false
+            showingFlightDetails = false
+            isReadyToCalculate = true
+        } label: {
+            Label("Calculate", systemImage: "checkmark.circle")
+                .font(.headline)
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.borderedProminent)
+        .padding(.horizontal)
+    }
+
+    func transportOptionView(for station: Station) -> some View {
+        Group {
+            if !station.alternatives.isEmpty {
+                VStack(spacing: 12) {
+                    Text("Transport option")
+                        .font(.headline)
+
+                    Picker("Transport option", selection: $selectedAlternative) {
+                        Text(defaultTransportOptionLabel(for: station)).tag(defaultAlternativeTag)
+
+                        ForEach(station.alternatives) { alternative in
+                            Text(alternative.label).tag(alternative.label)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .onChange(of: selectedAlternative) {
+                        isReadyToCalculate = false
+                        showingFlightDetails = false
+                    }
+                }
+                .padding(.horizontal)
+            }
+        }
     }
 
     var bottomInfoSection: some View {
@@ -293,25 +370,9 @@ struct ContentView: View {
     func resultsView(for station: Station) -> some View {
         VStack(spacing: 16) {
             flightConversionCard(for: station)
-            
-            if !station.alternatives.isEmpty {
-                VStack(spacing: 12) {
-                    Text("Transport option")
-                        .font(.headline)
-                    
-                    Picker("Transport option", selection: $selectedAlternative) {
-                        Text("Default").tag(defaultAlternativeTag)
-                        
-                        ForEach(station.alternatives) { alternative in
-                            Text(alternative.label).tag(alternative.label)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                }
-            }
-            
+
             if let result = calculateResult(for: station) {
-                resultCard(result, station: station)
+                resultCard(result, station: station, hotel: hotel(for: station))
             } else {
                 errorCard
             }
@@ -373,6 +434,18 @@ struct ContentView: View {
             Spacer()
 
             Button {
+                showingWhatsNew = true
+            } label: {
+                Image(systemName: "sparkles")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                    .padding(10)
+                    .background(.gray.opacity(0.10))
+                    .clipShape(Circle())
+            }
+            .accessibilityLabel("What's New")
+
+            Button {
                 showingHistory = true
             } label: {
                 Image(systemName: "clock.arrow.circlepath")
@@ -382,7 +455,7 @@ struct ContentView: View {
                     .background(.gray.opacity(0.10))
                     .clipShape(Circle())
             }
-            .accessibilityLabel("History")
+            .accessibilityLabel("Saved Calculations")
 
             Button {
                 showingSettings = true
@@ -399,7 +472,7 @@ struct ContentView: View {
         .padding(.horizontal)
     }
 
-    func resultCard(_ result: CalculationResult, station: Station) -> some View {
+    func resultCard(_ result: CalculationResult, station: Station, hotel: Hotel?) -> some View {
         VStack(spacing: 14) {
             Text("Transport time used: \(result.transportTime)")
                 .font(.subheadline)
@@ -413,6 +486,8 @@ struct ContentView: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+
+            hotelCard(for: station, hotel: hotel)
 
             VStack(spacing: 6) {
                 Text("Wake-up")
@@ -448,28 +523,98 @@ struct ContentView: View {
             .background(.red.opacity(0.16))
             .clipShape(RoundedRectangle(cornerRadius: 16))
 
-            Button {
-                saveCalculation(result, for: station)
-                didSaveCalculation = true
-
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+            HStack(spacing: 12) {
+                Button {
                     resetCalculatorForNextInput()
+                } label: {
+                    Label("Dismiss", systemImage: "xmark.circle")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
                 }
-            } label: {
-                Label(
-                    didSaveCalculation ? "Saved!" : "Save calculation",
-                    systemImage: didSaveCalculation ? "checkmark.circle.fill" : "tray.and.arrow.down"
-                )
-                .font(.headline)
-                .frame(maxWidth: .infinity)
+                .buttonStyle(.bordered)
+
+                Button {
+                    saveCalculation(result, for: station)
+                    didSaveCalculation = true
+
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                        resetCalculatorForNextInput()
+                    }
+                } label: {
+                    Label(
+                        didSaveCalculation ? "Saved!" : "Save calculation",
+                        systemImage: didSaveCalculation ? "checkmark.circle.fill" : "tray.and.arrow.down"
+                    )
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
             }
-            .buttonStyle(.borderedProminent)
         }
         .padding()
         .frame(maxWidth: .infinity)
         .background(.gray.opacity(0.08))
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
+    func hotelCard(for station: Station, hotel: Hotel?) -> some View {
+        Group {
+            if let hotel {
+                Button {
+                    selectedHotel = hotel
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Hotel")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        HStack {
+                            Text(hotel.name)
+                                .font(.headline)
+                                .multilineTextAlignment(.leading)
+
+                            Spacer()
+
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+                .padding()
+                .background(.blue.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+            } else {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Hotel")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Text("Hotel info unavailable for \(station.iata)")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.gray.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+            }
+        }
+    }
+
+    func defaultTransportOptionLabel(for station: Station) -> String {
+        if let hotel = hotel(for: station) {
+            return hotel.name
+        }
+
+        return "Default"
+    }
+
+    func hotel(for station: Station) -> Hotel? {
+        HotelDataService.shared.hotel(for: station.iata.uppercased())
+    }
+
 
     var errorCard: some View {
         VStack(spacing: 10) {
@@ -526,6 +671,8 @@ struct ContentView: View {
         showingTimePicker = false
         selectedAlternative = defaultAlternativeTag
         showingFlightDetails = false
+        isReadyToCalculate = false
+        selectedHotel = nil
         didSaveCalculation = false
     }
 

@@ -85,29 +85,47 @@ struct SettingsView: View {
                 Text("Documents")
                     .font(.headline)
 
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Transport Times")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
+                documentRow(
+                    title: "Transport Times",
+                    document: "FO/CP/CRS Nº141",
+                    revision: "REV70",
+                    date: "29 Jun 2026"
+                )
 
-                        Text("FO/CP/CRS Nº141")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                Divider()
 
-                    Spacer()
+                documentRow(
+                    title: "Hotel Map",
+                    document: "FO/CP/CRS Nº140",
+                    revision: "REV51",
+                    date: "29 Jun 2026"
+                )
+            }
+        }
+    }
 
-                    VStack(alignment: .trailing, spacing: 4) {
-                        Text("REV70")
-                            .font(.subheadline)
-                            .fontWeight(.bold)
+    private func documentRow(title: String, document: String, revision: String, date: String) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
 
-                        Text("29 Jun 2026")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                Text(document)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 4) {
+                Text(revision)
+                    .font(.subheadline)
+                    .fontWeight(.bold)
+
+                Text(date)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
     }

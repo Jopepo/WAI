@@ -1,0 +1,821 @@
+
+
+
+
+{
+  "document": "FO/CP/CRS Nº140 REV51 29JUN26",
+  "revision": "REV51",
+  "date": "2026-06-29",
+  "hotels": [
+    {
+      "iata": "ABJ",
+      "icao": "DIAP",
+      "city": "Abidjan",
+      "country": "Côte d'Ivoire",
+      "name": "AZALAI HOTEL ABIDJAN",
+      "phone": "+225 21 222 555",
+      "email": "Franck.lokossa@azalaihotels.com",
+      "fax": "+225 21 22 25 50"
+    },
+    {
+      "iata": "ACC",
+      "icao": "DGAA",
+      "city": "Accra",
+      "country": "Ghana",
+      "name": "LA PALM",
+      "phone": "+00 233 244061152",
+      "email": "hotels@legacyhotels.co.za",
+      "fax": null
+    },
+    {
+      "iata": "AMS",
+      "icao": "EHAM",
+      "city": "Amsterdam",
+      "country": "Netherlands",
+      "name": "LEONARDO ROYAL HOTEL AMSTERDAM",
+      "phone": "0031 20 250 0000",
+      "email": "reservations.royalamsterdam@leonardo-hotels.com",
+      "fax": null
+    },
+    {
+      "iata": "ARN",
+      "icao": "ESSA",
+      "city": "Stockholm",
+      "country": "Sweden",
+      "name": "COURTYARD BY MARRIOTT",
+      "phone": "+46 8 441 31 00",
+      "email": "reservation.stockholm@marriotthotels.se",
+      "fax": null
+    },
+    {
+      "iata": "ATH",
+      "icao": "LGAV",
+      "city": "Athens",
+      "country": "Greece",
+      "name": "HILTON GARDEN INN ATHENS SYGGROU AVENUE",
+      "phone": "0030 2109525903",
+      "email": "reception@hgiathens.com",
+      "fax": null
+    },
+    {
+      "iata": "BEL",
+      "icao": "SBBE",
+      "city": "Belém",
+      "country": "Brazil",
+      "name": "MERCURE BELÉM BOULEVARD HOTEL",
+      "phone": "+55-91-336 67575 / +55-91-984832738",
+      "email": "qtb.reservas@goldentulip.com.br; lucas.freitas@goldentulip.com.br",
+      "fax": null
+    },
+    {
+      "iata": "BER",
+      "icao": "EDDB",
+      "city": "Berlin",
+      "country": "Germany",
+      "name": "STEIGENBERGER AIRPORT HOTEL",
+      "phone": "0 30 246 497 0",
+      "email": "groups.berlin-airport@steigenberger.com",
+      "fax": null
+    },
+    {
+      "iata": "BCN",
+      "icao": "LEBL",
+      "city": "Barcelona",
+      "country": "Spain",
+      "name": "FOUR POINTS BY SHERATON BARCELONA DIAGONAL",
+      "phone": "+34 934 868 800",
+      "email": "reservation@fourpointsbarcelona.com",
+      "fax": null
+    },
+    {
+      "iata": "BIO",
+      "icao": "LEBB",
+      "city": "Bilbao",
+      "country": "Spain",
+      "name": "MELIA BILBAO",
+      "phone": "(34) 34 94 428 0000",
+      "email": "melia.bilbao@solmelia.com",
+      "fax": "(34) 94 4280001"
+    },
+    {
+      "iata": "BOS",
+      "icao": "KBOS",
+      "city": "Boston",
+      "country": "USA",
+      "name": "BOSTON MARRIOTT CAMBRIDGE",
+      "phone": "Tel(617) 494-6600",
+      "email": "bostoncambridgefrontoffice@marriott.com",
+      "fax": null
+    },
+    {
+      "iata": "BRU",
+      "icao": "EBBR",
+      "city": "Brussels",
+      "country": "Belgium",
+      "name": "INDIGO BRUSSELS CITY",
+      "phone": "+32 (2) 203 3125",
+      "email": "info@indigo.brussels",
+      "fax": null
+    },
+    {
+      "iata": "BSB",
+      "icao": "SBBR",
+      "city": "Brasília",
+      "country": "Brazil",
+      "name": "MELIA BRASIL 21",
+      "phone": "(+55) 61 3218 4700",
+      "email": "melia.brasil21@melia.com",
+      "fax": null
+    },
+    {
+      "iata": "CCS",
+      "icao": "SVMI",
+      "city": "Caracas",
+      "country": "Venezuela",
+      "name": "HOTEL MARRIOT PLAYA GRANDE",
+      "phone": "58 212-535 2222",
+      "email": null,
+      "fax": null
+    },
+    {
+      "iata": "CNF",
+      "icao": "SBCF",
+      "city": "Belo Horizonte",
+      "country": "Brazil",
+      "name": "OURO MINAS PALACE HOTEL",
+      "phone": "+55.31.34294001",
+      "email": "reserve@ourominas.com.br",
+      "fax": "55.31.34294002"
+    },
+    {
+      "iata": "CPH",
+      "icao": "EKCH",
+      "city": "Copenhagen",
+      "country": "Denmark",
+      "name": "SCANDIC SPECTRUM",
+      "phone": "+457 730 9800",
+      "email": "spectrum@scandichotels.com",
+      "fax": null
+    },
+    {
+      "iata": "CUN",
+      "icao": "MMUN",
+      "city": "Cancún",
+      "country": "Mexico",
+      "name": "CANOPY BY HILTON CANCUN LA ISLA",
+      "phone": "52 998 689 11 93",
+      "email": "cunli_FO@hilton.com",
+      "fax": null
+    },
+    {
+      "iata": "CWB",
+      "icao": "SBCT",
+      "city": "Curitiba",
+      "country": "Brazil",
+      "name": "PESTANA CURITIBA",
+      "phone": "55 41 3017 9900",
+      "email": "fo.ctb@pestana.com",
+      "fax": null
+    },
+    {
+      "iata": "DME",
+      "icao": "UUDD",
+      "city": "Moscow",
+      "country": "Russia",
+      "name": "HOTEL HILTON GARDEN INN MOSCOW KRASNOSELSKAYA",
+      "phone": "+7 495 221 8081",
+      "email": "MOWKR_RM@hilton.com; Elizaveta.Sarcheva@hilton.com",
+      "fax": null
+    },
+    {
+      "iata": "DSS",
+      "icao": "GOBD",
+      "city": "Dakar",
+      "country": "Senegal",
+      "name": "FOUR POINTS BY SHERATON DKR DIAMNIADIO",
+      "phone": "+221 33 924 86 00",
+      "email": "fo.dssfp@fourpoints.com",
+      "fax": null
+    },
+    {
+      "iata": "DUB",
+      "icao": "EIDW",
+      "city": "Dublin",
+      "country": "Ireland",
+      "name": "HILTON DUBLIN AIRPORT",
+      "phone": "00353 186 61800",
+      "email": "Andrew.hibbert@hilton.com",
+      "fax": null
+    },
+    {
+      "iata": "DUS",
+      "icao": "EDDL",
+      "city": "Düsseldorf",
+      "country": "Germany",
+      "name": "NH DÜSSELDORF CITY",
+      "phone": "+49 211 78110",
+      "email": "reception.nhduesseldorf@nh-hotels.com",
+      "fax": null
+    },
+    {
+      "iata": "EWR",
+      "icao": "KEWR",
+      "city": "Newark",
+      "country": "USA",
+      "name": "HOTEL MARRIOTT BROOKLYN",
+      "phone": "+1 718 246 7000",
+      "email": "NYBKFrontOfficeManagers@marriott.com",
+      "fax": null
+    },
+    {
+      "iata": "FAO",
+      "icao": "LPFR",
+      "city": "Faro",
+      "country": "Portugal",
+      "name": "PESTANA VILA SOL",
+      "phone": "+351 289 320 320",
+      "email": "grupos.algarve@pestana.com; fo.vilasol@pestana.com",
+      "fax": null
+    },
+    {
+      "iata": "FCO",
+      "icao": "LIRF",
+      "city": "Rome",
+      "country": "Italy",
+      "name": "ROME MARRIOTT PARK HOTEL",
+      "phone": "+39.06.658 8211",
+      "email": "mhrs.romau.reservations@marriotthotels.com; atyourservice.rome@russottigh.com",
+      "fax": null
+    },
+    {
+      "iata": "FLN",
+      "icao": "SBFL",
+      "city": "Florianópolis",
+      "country": "Brazil",
+      "name": "MAGESTIC PALACE HOTEL",
+      "phone": "+55 48 323 18 000",
+      "email": "reservas@magesticpalace.com.br",
+      "fax": null
+    },
+    {
+      "iata": "FNC",
+      "icao": "LPMA",
+      "city": "Funchal",
+      "country": "Portugal",
+      "name": "HOTEL PESTANA CASINO PARK",
+      "phone": "+351 291 209 100",
+      "email": "fo.casino@pestana.com",
+      "fax": "291 717701"
+    },
+    {
+      "iata": "FOR",
+      "icao": "SBFZ",
+      "city": "Fortaleza",
+      "country": "Brazil",
+      "name": "GRAN MAREIRO HOTEL",
+      "phone": "(+55)85 310 47200",
+      "email": "gerenciarecepcao@granmareiro.com.br",
+      "fax": null
+    },
+    {
+      "iata": "FRA",
+      "icao": "EDDF",
+      "city": "Frankfurt",
+      "country": "Germany",
+      "name": "HOLIDAY INN FRANKFURT – Alte Oper",
+      "phone": "+49 69 255 156500",
+      "email": "hifrankfurt@ihg.com",
+      "fax": null
+    },
+    {
+      "iata": "GIG",
+      "icao": "SBGL",
+      "city": "Rio de Janeiro",
+      "country": "Brazil",
+      "name": "WINDSOR MARAPENDI",
+      "phone": "+00 55 21 219 599 00",
+      "email": "reservas.marapendi@windsorhoteis.com.br",
+      "fax": null
+    },
+    {
+      "iata": "GRU",
+      "icao": "SBGR",
+      "city": "São Paulo",
+      "country": "Brazil",
+      "name": "RADISSON PAULISTA",
+      "phone": "+00 55 11- 2627.1000",
+      "email": "recepcao.rdpa@ahi.com.br; recepcao1.rdpa@ahi.com.br",
+      "fax": null
+    },
+    {
+      "iata": "GVA",
+      "icao": "LSGG",
+      "city": "Geneva",
+      "country": "Switzerland",
+      "name": "NH GENEVA AIRPORT HOTEL",
+      "phone": "+41 229 899 000",
+      "email": "n.canesson@nh-hotels.com",
+      "fax": null
+    },
+    {
+      "iata": "HAM",
+      "icao": "EDDH",
+      "city": "Hamburg",
+      "country": "Germany",
+      "name": "COURTYARD MARRIOT HAMBURG AIRPORT",
+      "phone": "+49.40.531020",
+      "email": "direktion@airporthh.com",
+      "fax": "49.40.531023"
+    },
+    {
+      "iata": "HEL",
+      "icao": "EFHK",
+      "city": "Helsinki",
+      "country": "Finland",
+      "name": "RADISSON BLU SEASIDE",
+      "phone": "+358 (0) 20 1234707",
+      "email": "info.seaside.helsinki@radissonblu.com",
+      "fax": null
+    },
+    {
+      "iata": "IAD",
+      "icao": "KIAD",
+      "city": "Washington",
+      "country": "USA",
+      "name": "WASHINGTON MARRIOTT GEORGETOWN",
+      "phone": "+1 202 8721500",
+      "email": "WASWEFrontOffice@marriott.com",
+      "fax": null
+    },
+    {
+      "iata": "JFK",
+      "icao": "KJFK",
+      "city": "New York",
+      "country": "USA",
+      "name": "HOTEL MARRIOTT BROOKLYN",
+      "phone": "+1 718-246 7000",
+      "email": "NYBKFrontOfficeManagers@marriott.com",
+      "fax": null
+    },
+    {
+      "iata": "JNB",
+      "icao": "FAOR",
+      "city": "Johannesburg",
+      "country": "South Africa",
+      "name": "PROTEA HOTEL BY MARRIOTT JOHANNESBURG BALALAIKA SANDTON",
+      "phone": "27 11 322 5000",
+      "email": "airlines@balalaika.co.za",
+      "fax": null
+    },
+    {
+      "iata": "LAD",
+      "icao": "FNLU",
+      "city": "Luanda",
+      "country": "Angola",
+      "name": "EPIC SANA LUANDA HOTEL",
+      "phone": "244 222 642 600; +244 943 814 602; +244 939 616 904",
+      "email": "corp.luanda@epic.sanahotels.com; fom.luanda@epic.sanahotels.com",
+      "fax": null
+    },
+    {
+      "iata": "LAX",
+      "icao": "KLAX",
+      "city": "Los Angeles",
+      "country": "USA",
+      "name": "WESTIN LONG BEACH",
+      "phone": "562.436.3000",
+      "email": "reservations@westinlb.com",
+      "fax": null
+    },
+    {
+      "iata": "LGW",
+      "icao": "EGKK",
+      "city": "London",
+      "country": "United Kingdom",
+      "name": "CROWNE PLAZA GATWICK HOTEL",
+      "phone": "44.1293.529991",
+      "email": "reservations@cpgatwick.com",
+      "fax": "44.1293.528980"
+    },
+    {
+      "iata": "LHR",
+      "icao": "EGLL",
+      "city": "London",
+      "country": "United Kingdom",
+      "name": "LEONARDO HOTEL LONDON HEATHROW AIRPORT",
+      "phone": "44 020.899 00000",
+      "email": "Liz_Simmons@leonardohotels.com",
+      "fax": null
+    },
+    {
+      "iata": "LIN",
+      "icao": "LIML",
+      "city": "Milan",
+      "country": "Italy",
+      "name": "UNA HOTEL SCANDINAVIA",
+      "phone": "39.02.336 391",
+      "email": "una.scandinavia@unahotels.it",
+      "fax": "39.02.33104510"
+    },
+    {
+      "iata": "LIS",
+      "icao": "LPPT",
+      "city": "Lisbon",
+      "country": "Portugal",
+      "name": "OLISSIPPO ORIENTE",
+      "phone": "351.2189 29100",
+      "email": "rita.simoes@olissippohotels.com",
+      "fax": "351.218929119"
+    },
+    {
+      "iata": "LPA",
+      "icao": "GCLP",
+      "city": "Las Palmas",
+      "country": "Spain",
+      "name": "NH IMPERIAL PLAYA",
+      "phone": "+34 9284 68854",
+      "email": "nhimperial@nh-hotels.com",
+      "fax": null
+    },
+    {
+      "iata": "LUX",
+      "icao": "ELLX",
+      "city": "Luxembourg",
+      "country": "Luxembourg",
+      "name": "MERCURE GRAND ALFA",
+      "phone": "+352 490 0111",
+      "email": "H2058@accor.com",
+      "fax": "+352 490009"
+    },
+    {
+      "iata": "LYS",
+      "icao": "LFLL",
+      "city": "Lyon",
+      "country": "France",
+      "name": "NH LYON AIRPORT",
+      "phone": "33 (0) 472 230 550",
+      "email": "nhlyonaeroport@nh-hotels.com",
+      "fax": "33 (0) 472230660"
+    },
+    {
+      "iata": "MCZ",
+      "icao": "SBMO",
+      "city": "Maceió",
+      "country": "Brazil",
+      "name": "JATIUCA SUITES RESORT BY SLAVIERO HÓTEIS",
+      "phone": "+55 82 212 22100",
+      "email": "reservas.sumj@slavierohoteis.com.br",
+      "fax": null
+    },
+    {
+      "iata": "MAD",
+      "icao": "LEMD",
+      "city": "Madrid",
+      "country": "Spain",
+      "name": "NOVOTEL CAMPO DE LAS NACIONES",
+      "phone": "34.91.721 1818",
+      "email": "h1636@accor.com",
+      "fax": "34.91.7211122"
+    },
+    {
+      "iata": "MAN",
+      "icao": "EGCC",
+      "city": "Manchester",
+      "country": "United Kingdom",
+      "name": "CLAYTON HOTEL MANCESTER AIRPORT",
+      "phone": "44 (0)1616 498 0333",
+      "email": null,
+      "fax": null
+    },
+    {
+      "iata": "MIA",
+      "icao": "KMIA",
+      "city": "Miami",
+      "country": "USA",
+      "name": "UMA HOUSE SOUTH BEACH",
+      "phone": "+ 305 390 1184",
+      "email": "southbeach@umahouse.com",
+      "fax": null
+    },
+    {
+      "iata": "MPM",
+      "icao": "FQMA",
+      "city": "Maputo",
+      "country": "Mozambique",
+      "name": "HOTEL AVENIDA",
+      "phone": "+ 258 21 484 400",
+      "email": "avenida@tdhotels.com",
+      "fax": null
+    },
+    {
+      "iata": "MUC",
+      "icao": "EDDM",
+      "city": "Munich",
+      "country": "Germany",
+      "name": "MUNICH AIRPORT MARRIOTT",
+      "phone": "49.81.619 660",
+      "email": "mhrs.mucfr.resa@marriotthotels.com",
+      "fax": "49.81.619666281"
+    },
+    {
+      "iata": "MXP",
+      "icao": "LIMC",
+      "city": "Milan",
+      "country": "Italy",
+      "name": "STARHOTELS GRAND MILAN",
+      "phone": "+39 02 963 631",
+      "email": "grandmilan.va@starhotels.it",
+      "fax": null
+    },
+    {
+      "iata": "NAT",
+      "icao": "SBSG",
+      "city": "Natal",
+      "country": "Brazil",
+      "name": "SEHRS NATAL GRAND HOTEL & RESORT",
+      "phone": "+55 84 400 52000",
+      "email": "reservas@serhs.com.br",
+      "fax": null
+    },
+    {
+      "iata": "NCE",
+      "icao": "LFMN",
+      "city": "Nice",
+      "country": "France",
+      "name": "NOVOTEL NICE ARENAS AÉROPORT",
+      "phone": "+33 4 93 212 250",
+      "email": "H0478@accor.com",
+      "fax": "+33 4 93 21 63 50"
+    },
+    {
+      "iata": "OPO",
+      "icao": "LPPR",
+      "city": "Porto",
+      "country": "Portugal",
+      "name": "PESTANA DOURO RIVERSIDE",
+      "phone": "+351 229 761 100",
+      "email": "sofia.rebocho@pestana.com",
+      "fax": null
+    },
+    {
+      "iata": "ORD",
+      "icao": "KORD",
+      "city": "Chicago",
+      "country": "USA",
+      "name": "THE WESTIN MICHIGAN AVENUE CHICAGO",
+      "phone": "(+312) 943 7200",
+      "email": "CHIWIFrontOffice@marriott.com",
+      "fax": null
+    },
+    {
+      "iata": "ORY",
+      "icao": "LFPO",
+      "city": "Paris",
+      "country": "France",
+      "name": "BRIT HOTEL PARIS ORLY",
+      "phone": "+33188204143",
+      "email": "orly-rungis@brithotel.fr",
+      "fax": null
+    },
+    {
+      "iata": "OSL",
+      "icao": "ENGM",
+      "city": "Oslo",
+      "country": "Norway",
+      "name": "RADISSON BLU SCANDINAVIA",
+      "phone": "+47 23 29 3000 (24/7)",
+      "email": "danielle.dalvang@radissonblu.com",
+      "fax": null
+    },
+    {
+      "iata": "PDL",
+      "icao": "LPPD",
+      "city": "Ponta Delgada",
+      "country": "Portugal",
+      "name": "ROYAL GARDEN HOTEL",
+      "phone": "351 296 307 300",
+      "email": "rececao.royal@azoris.com",
+      "fax": null
+    },
+    {
+      "iata": "POA",
+      "icao": "SBPA",
+      "city": "Porto Alegre",
+      "country": "Brazil",
+      "name": "HILTON PORTO ALEGRE",
+      "phone": "+ 5551 2121 6000",
+      "email": "portoalegre.resevations@hilton.com; poaob_am@hilton.com; poaob_fo@hilton.com",
+      "fax": null
+    },
+    {
+      "iata": "PRG",
+      "icao": "LKPR",
+      "city": "Prague",
+      "country": "Czech Republic",
+      "name": "NH PRAGUE",
+      "phone": "+420 257 153 111",
+      "email": "Rsvt.nhprague@nh-hotels.com; Concierge.nhprague@nh-hotels.com; Nhprague@nh-hotels.com",
+      "fax": null
+    },
+    {
+      "iata": "PUJ",
+      "icao": "MDPC",
+      "city": "Punta Cana",
+      "country": "Dominican Republic",
+      "name": "BARCELO BAVARO BEACH",
+      "phone": "01 809 686 5797",
+      "email": "bavaro.res-europa@barcelo.com",
+      "fax": null
+    },
+    {
+      "iata": "RAI",
+      "icao": "GVNP",
+      "city": "Praia",
+      "country": "Cape Verde",
+      "name": "PESTANA TRÓPICO",
+      "phone": "+238 9578699",
+      "email": "fo.tropico@pestana.com",
+      "fax": null
+    },
+    {
+      "iata": "REC",
+      "icao": "SBRF",
+      "city": "Recife",
+      "country": "Brazil",
+      "name": "BUGAN RECIFE HOTEL BY ATLANTICA",
+      "phone": "+55 81 325 67700",
+      "email": "recepcao.recife@buganhotel.com.br",
+      "fax": null
+    },
+    {
+      "iata": "SFO",
+      "icao": "KSFO",
+      "city": "San Francisco",
+      "country": "USA",
+      "name": "HOTEL HILTON SAN FRANCISCO UNION SQUARE",
+      "phone": "+1 415. 771 1400",
+      "email": "SFOFH_FrontOfficeRC@hilton.com",
+      "fax": null
+    },
+    {
+      "iata": "SID",
+      "icao": "GVAC",
+      "city": "Sal",
+      "country": "Cape Verde",
+      "name": "HILTON CABO VERDE SAL RESORT",
+      "phone": "+238 3344444",
+      "email": "SIDCV_RES@hilton.com",
+      "fax": null
+    },
+    {
+      "iata": "SSA",
+      "icao": "SBSV",
+      "city": "Salvador",
+      "country": "Brazil",
+      "name": "CATUSSABA SUITES",
+      "phone": "(+) 55 71 336 44700",
+      "email": "vendas@catussaba.com.br",
+      "fax": null
+    },
+    {
+      "iata": "STR",
+      "icao": "EDDS",
+      "city": "Stuttgart",
+      "country": "Germany",
+      "name": "MÖVENPICK HOTEL STUTTGART",
+      "phone": "+ 49 711 553 440",
+      "email": "hotel.stuttgard.airport@movenpick.com",
+      "fax": "55.7131729200"
+    },
+    {
+      "iata": "TER",
+      "icao": "LPLA",
+      "city": "Terceira",
+      "country": "Portugal",
+      "name": "AZORIS ANGRA GARDEN",
+      "phone": "+351 295 206 600",
+      "email": "rececao.angra@azorishotels.com",
+      "fax": null
+    },
+    {
+      "iata": "TFS",
+      "icao": "GCTS",
+      "city": "Tenerife",
+      "country": "Spain",
+      "name": "BE LIVE LA NIÑA",
+      "phone": "+34 911 360 606",
+      "email": "narcis.vilaire@belivehotels.com",
+      "fax": null
+    },
+    {
+      "iata": "TLS",
+      "icao": "LFBO",
+      "city": "Toulouse",
+      "country": "France",
+      "name": "COURTYARD BY MARRIOT TOULOUSEAIRPORT HOTEL",
+      "phone": "+33. (0) 5 34.398 000",
+      "email": null,
+      "fax": "+33.(0) 5 34.39.80.40"
+    },
+    {
+      "iata": "TLV",
+      "icao": "LLBG",
+      "city": "Tel Aviv",
+      "country": "Israel",
+      "name": "DANIEL HOTEL",
+      "phone": "+ 972 995 28282",
+      "email": "asaf.mizrahi@tamareshotels.co.il",
+      "fax": null
+    },
+    {
+      "iata": "TMS",
+      "icao": "FPST",
+      "city": "São Tomé",
+      "country": "São Tomé and Príncipe",
+      "name": "PESTANA S. TOMÉ",
+      "phone": "+351 282 240 001",
+      "email": "trade@pestana.com",
+      "fax": null
+    },
+    {
+      "iata": "VCE",
+      "icao": "LIPZ",
+      "city": "Venice",
+      "country": "Italy",
+      "name": "CROWNE PLAZA VENICE EAST",
+      "phone": "+ 39 0422 703 811",
+      "email": "abdelaziz@cpvenezia",
+      "fax": "+ 39 0422 703822"
+    },
+    {
+      "iata": "VIE",
+      "icao": "LOWW",
+      "city": "Vienna",
+      "country": "Austria",
+      "name": "FALKENSTEINER MARGARETEN",
+      "phone": "+43 50 99 113 000",
+      "email": "reservations.wienmargareten@falkensteiner.com",
+      "fax": null
+    },
+    {
+      "iata": "VLC",
+      "icao": "LEVC",
+      "city": "Valencia",
+      "country": "Spain",
+      "name": "TRYP OCEANIC",
+      "phone": "+34 963 350 300",
+      "email": "tryp.oceanic@melia.com",
+      "fax": "+34963350311"
+    },
+    {
+      "iata": "VXE",
+      "icao": "GVSV",
+      "city": "São Vicente",
+      "country": "Cape Verde",
+      "name": "OÁSIS ATLÂNTICO PORTO GRANDE",
+      "phone": "23 231 90/92/94/95",
+      "email": "reservas.pgrande@oasisatlantico.com",
+      "fax": null
+    },
+    {
+      "iata": "WAW",
+      "icao": "EPWA",
+      "city": "Warsaw",
+      "country": "Poland",
+      "name": "SOFITEL WARSAW VICTORIA",
+      "phone": "0048 22 6578011",
+      "email": "h3383-re@accor.com",
+      "fax": null
+    },
+    {
+      "iata": "YUL",
+      "icao": "CYUL",
+      "city": "Montreal",
+      "country": "Canada",
+      "name": "FAIRMONT THE QUEEN ELIZABETH",
+      "phone": "+1 514-861 3511",
+      "email": "queenelizabeth.hotel@fairmont.com",
+      "fax": "+514 954 2256"
+    },
+    {
+      "iata": "YYZ",
+      "icao": "CYYZ",
+      "city": "Toronto",
+      "country": "Canada",
+      "name": "CANOPY BY HILTON TORONTO YORKVILLE",
+      "phone": "(+01) 416-921 3333",
+      "email": "welcomedesk@canopytorontoyorkville.com",
+      "fax": null
+    },
+    {
+      "iata": "ZRH",
+      "icao": "LSZH",
+      "city": "Zurich",
+      "country": "Switzerland",
+      "name": "MOVENPICK HOTEL REGENSDORF",
+      "phone": "+41 44 871 5111",
+      "email": "hotel.regensdorf@movenpick.com",
+      "fax": null
+    }
+  ]
+}
