@@ -11,11 +11,19 @@ struct ContentView: View {
     @State private var selectedHour = 6
     @State private var selectedMinute = 0
     @State private var etdDate = Date()
-    @State private var timeInputReference: TimeInputReference = .utc
+    @AppStorage("wai.timeInputReference") private var timeInputReferenceRawValue = TimeInputReference.utc.rawValue
     @State private var showingTimePicker = false
     @State private var selectedAlternative = "__DEFAULT__"
     @State private var showingFeedbackFallback = false
+    @State private var showingSettings = false
+    @State private var showingHistory = false
+    @State private var showingFlightDetails = false
+    @State private var didSaveCalculation = false
     @StateObject private var historyStore = CalculationHistoryStore()
+
+    var timeInputReference: TimeInputReference {
+        TimeInputReference(rawValue: timeInputReferenceRawValue) ?? .utc
+    }
 
     var formattedTime: String {
         String(format: "%02d:%02d", selectedHour, selectedMinute)
@@ -29,7 +37,7 @@ struct ContentView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    Spacer().frame(height: 40)
+                    topBar
 
                     Text("WAI")
                         .font(.largeTitle)
@@ -53,6 +61,7 @@ struct ContentView: View {
                     .pickerStyle(.menu)
                     .onChange(of: selectedStation) {
                         selectedAlternative = defaultAlternativeTag
+                        didSaveCalculation = false
                     }
 
                     if selectedStation != "WhereAmI?" {
@@ -63,13 +72,41 @@ struct ContentView: View {
                         }
                     }
 
-                    historySection
-
                     Spacer(minLength: 40)
 
                     bottomInfoSection
                 }
                 .padding()
+            }
+        }
+        .sheet(isPresented: $showingSettings) {
+            SettingsView(timeInputReferenceRawValue: $timeInputReferenceRawValue)
+        }
+        .onChange(of: showingSettings) {
+            if !showingSettings {
+                didSaveCalculation = false
+            }
+        }
+        .sheet(isPresented: $showingHistory) {
+            NavigationStack {
+                ScrollView {
+                    historySection
+                        .padding(.top)
+                }
+                .navigationTitle("Saved Calculations")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Done") {
+                            showingHistory = false
+                        }
+                    }
+                }
+            }
+        }
+        .onChange(of: showingHistory) {
+            if !showingHistory {
+                didSaveCalculation = false
             }
         }
     }
@@ -78,20 +115,6 @@ struct ContentView: View {
         VStack(spacing: 12) {
             Text("Flight Departure")
                 .font(.headline)
-
-            DatePicker(
-                "ETD date",
-                selection: $etdDate,
-                displayedComponents: .date
-            )
-            .datePickerStyle(.compact)
-
-            Picker("Time reference", selection: $timeInputReference) {
-                ForEach(TimeInputReference.allCases) { reference in
-                    Text(reference.title).tag(reference)
-                }
-            }
-            .pickerStyle(.segmented)
 
             Button {
                 showingTimePicker.toggle()
@@ -103,6 +126,14 @@ struct ContentView: View {
                     .background(.gray.opacity(0.15))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             }
+
+            DatePicker(
+                "",
+                selection: $etdDate,
+                displayedComponents: .date
+            )
+            .labelsHidden()
+            .datePickerStyle(.compact)
 
             if showingTimePicker {
                 VStack {
@@ -149,8 +180,6 @@ struct ContentView: View {
                 .padding(.vertical, 6)
                 .background(.gray.opacity(0.12))
                 .clipShape(Capsule())
-
-            feedbackButton
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 8)
@@ -159,34 +188,48 @@ struct ContentView: View {
 
     var historySection: some View {
         VStack(spacing: 12) {
-            if let lastCalculation = historyStore.lastCalculation {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Last calculation")
+            if historyStore.history.isEmpty {
+                VStack(spacing: 8) {
+                    Text("No saved calculations yet")
                         .font(.headline)
 
-                    historyRow(lastCalculation)
+                    Text("Saved calculations will appear here.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
                 .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity)
                 .background(.gray.opacity(0.08))
                 .clipShape(RoundedRectangle(cornerRadius: 18))
-            }
-
-            if !historyStore.history.isEmpty {
-                DisclosureGroup("History") {
-                    VStack(spacing: 10) {
-                        ForEach(historyStore.history) { item in
+            } else {
+                VStack(spacing: 10) {
+                    ForEach(historyStore.history) { item in
+                        HStack(alignment: .top, spacing: 12) {
                             historyRow(item)
-                                .padding(.vertical, 4)
-                        }
 
-                        Button("Clear history", role: .destructive) {
-                            historyStore.clearHistory()
+                            Button(role: .destructive) {
+                                historyStore.delete(item)
+                                didSaveCalculation = false
+                            } label: {
+                                Image(systemName: "trash")
+                                    .font(.subheadline)
+                            }
+                            .buttonStyle(.borderless)
+                            .accessibilityLabel("Delete calculation")
                         }
-                        .buttonStyle(.bordered)
-                        .padding(.top, 6)
+                        .padding(.vertical, 4)
+
+                        if item.id != historyStore.history.last?.id {
+                            Divider()
+                        }
                     }
-                    .padding(.top, 8)
+
+                    Button("Clear calculations", role: .destructive) {
+                        historyStore.clearHistory()
+                        didSaveCalculation = false
+                    }
+                    .buttonStyle(.bordered)
+                    .padding(.top, 6)
                 }
                 .padding()
                 .background(.gray.opacity(0.08))
@@ -278,27 +321,44 @@ struct ContentView: View {
 
     func flightConversionCard(for station: Station) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Flight time entered")
-                    .font(.headline)
+            Button {
+                withAnimation(.easeInOut) {
+                    showingFlightDetails.toggle()
+                }
+            } label: {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Flight time")
+                            .font(.headline)
 
-                Text("\(formattedETDDate) · \(formattedTime) · \(timeInputReference.title)")
-                    .font(.title3)
-                    .bold()
+                        Text("\(formattedETDDate) · \(formattedTime) · \(timeInputReference.title)")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: showingFlightDetails ? "chevron.up" : "chevron.down")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
+            .buttonStyle(.plain)
 
-            Divider()
+            if showingFlightDetails {
+                Divider()
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Converted time")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Converted time")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.secondary)
 
-                ForEach(convertedDepartureRows(for: station), id: \.self) { row in
-                    Text(row)
-                        .font(.body)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    ForEach(convertedDepartureRows(for: station), id: \.self) { row in
+                        Text(row)
+                            .font(.body)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
             }
         }
@@ -306,6 +366,37 @@ struct ContentView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.gray.opacity(0.10))
         .clipShape(RoundedRectangle(cornerRadius: 18))
+    }
+
+    var topBar: some View {
+        HStack(spacing: 12) {
+            Spacer()
+
+            Button {
+                showingHistory = true
+            } label: {
+                Image(systemName: "clock.arrow.circlepath")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                    .padding(10)
+                    .background(.gray.opacity(0.10))
+                    .clipShape(Circle())
+            }
+            .accessibilityLabel("History")
+
+            Button {
+                showingSettings = true
+            } label: {
+                Image(systemName: "gearshape")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                    .padding(10)
+                    .background(.gray.opacity(0.10))
+                    .clipShape(Circle())
+            }
+            .accessibilityLabel("Settings")
+        }
+        .padding(.horizontal)
     }
 
     func resultCard(_ result: CalculationResult, station: Station) -> some View {
@@ -359,10 +450,18 @@ struct ContentView: View {
 
             Button {
                 saveCalculation(result, for: station)
+                didSaveCalculation = true
+
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                    resetCalculatorForNextInput()
+                }
             } label: {
-                Label("Save calculation", systemImage: "tray.and.arrow.down")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
+                Label(
+                    didSaveCalculation ? "Saved!" : "Save calculation",
+                    systemImage: didSaveCalculation ? "checkmark.circle.fill" : "tray.and.arrow.down"
+                )
+                .font(.headline)
+                .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
         }
@@ -390,7 +489,7 @@ struct ContentView: View {
     }
 
     func calculateResult(for station: Station) -> CalculationResult? {
-        TimeCalculator.calculate(
+        return TimeCalculator.calculate(
             selectedHour: selectedHour,
             selectedMinute: selectedMinute,
             station: station,
@@ -417,6 +516,17 @@ struct ContentView: View {
         )
 
         historyStore.save(item)
+    }
+
+    func resetCalculatorForNextInput() {
+        selectedStation = "WhereAmI?"
+        selectedHour = 6
+        selectedMinute = 0
+        etdDate = Date()
+        showingTimePicker = false
+        selectedAlternative = defaultAlternativeTag
+        showingFlightDetails = false
+        didSaveCalculation = false
     }
 
     func localDepartureLabel(for station: Station) -> String {

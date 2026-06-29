@@ -33,6 +33,16 @@ final class CalculationHistoryStore: ObservableObject {
         persist()
     }
 
+    func delete(_ item: CalculationHistoryItem) {
+        history.removeAll { $0.id == item.id }
+
+        if lastCalculation?.id == item.id {
+            lastCalculation = history.first
+        }
+
+        persist()
+    }
+
     private func load() {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
