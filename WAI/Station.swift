@@ -98,6 +98,7 @@ struct CalculationHistoryItem: Codable, Identifiable {
     let inputTimeText: String
     let pickupTimeText: String
     let wakeupTimeText: String
+    let roomNumber: String?
     let appliedRuleLabel: String?
 
     init(
@@ -110,6 +111,7 @@ struct CalculationHistoryItem: Codable, Identifiable {
         inputTimeText: String,
         pickupTimeText: String,
         wakeupTimeText: String,
+        roomNumber: String? = nil,
         appliedRuleLabel: String?
     ) {
         self.id = id
@@ -121,6 +123,7 @@ struct CalculationHistoryItem: Codable, Identifiable {
         self.inputTimeText = inputTimeText
         self.pickupTimeText = pickupTimeText
         self.wakeupTimeText = wakeupTimeText
+        self.roomNumber = roomNumber
         self.appliedRuleLabel = appliedRuleLabel
     }
 }

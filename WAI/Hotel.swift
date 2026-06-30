@@ -19,7 +19,24 @@ struct Hotel: Codable, Identifiable {
     let email: String?
     let fax: String?
 
+    var displayName: String {
+        name
+            .lowercased()
+            .split(separator: " ")
+            .map { word in
+                let smallWords: Set<String> = ["by", "da", "de", "do", "dos", "das", "la", "le", "du", "of", "the", "and"]
+                let rawWord = String(word)
+
+                if smallWords.contains(rawWord) {
+                    return rawWord
+                }
+
+                return rawWord.prefix(1).uppercased() + rawWord.dropFirst()
+            }
+            .joined(separator: " ")
+    }
+
     var mapsQuery: String {
-        "\(name) \(city)"
+        "\(displayName) \(city)"
     }
 }

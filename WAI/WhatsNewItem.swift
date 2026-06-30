@@ -25,6 +25,14 @@ struct WhatsNewItem: Identifiable, Codable {
 extension WhatsNewItem {
     static let current: [WhatsNewItem] = [
         WhatsNewItem(
+            id: "wai-v21-fixes",
+            title: "WAI 2.1",
+            detail: "Fixed hotel map opening behaviour, improved hotel name display, and added optional room numbers to saved calculations.",
+            priority: .medium,
+            category: .app,
+            documentRevision: "v2.1"
+        ),
+        WhatsNewItem(
             id: "wai-v2-release",
             title: "WAI v2",
             detail: "Hotel details, saved calculations, settings, and update notes are now part of WAI.",

@@ -1,9 +1,13 @@
 import SwiftUI
+import MapKit
+import SafariServices
 
 struct HotelDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     @State private var pendingContactAction: HotelContactAction?
+    @State private var showingMapOptions = false
+    @State private var showingWebMaps = false
 
     let hotel: Hotel
 
@@ -56,11 +60,16 @@ struct HotelDetailView: View {
                 }
             }
         }
+        .sheet(isPresented: $showingWebMaps) {
+            if let webMapsURL {
+                SafariView(url: webMapsURL)
+            }
+        }
     }
 
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(hotel.name)
+            Text(hotel.displayName)
                 .font(.largeTitle)
                 .fontWeight(.bold)
                 .multilineTextAlignment(.leading)
@@ -107,12 +116,35 @@ struct HotelDetailView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
-                Link(destination: mapsURL) {
+                Button {
+                    showingMapOptions = true
+                } label: {
                     Label("Open in Maps", systemImage: "map")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
+                .confirmationDialog(
+                    "Open hotel in maps",
+                    isPresented: $showingMapOptions,
+                    titleVisibility: .visible
+                ) {
+                    Button("Apple Maps") {
+                        openHotelInAppleMaps()
+                    }
+
+                    Button("Google Maps") {
+                        openHotelInGoogleMaps()
+                    }
+
+                    Button("Web") {
+                        showingWebMaps = true
+                    }
+
+                    Button("Cancel", role: .cancel) { }
+                } message: {
+                    Text(hotel.mapsQuery)
+                }
             }
         }
     }
@@ -174,9 +206,37 @@ struct HotelDetailView: View {
             .clipShape(RoundedRectangle(cornerRadius: 18))
     }
 
-    private var mapsURL: URL {
+    private func openHotelInAppleMaps() {
+        guard let url = appleMapsURL else { return }
+        UIApplication.shared.open(url)
+    }
+
+    private func openHotelInGoogleMaps() {
+        guard let googleURL = googleMapsURL else {
+            openHotelInAppleMaps()
+            return
+        }
+
+        UIApplication.shared.open(googleURL, options: [:]) { success in
+            if !success {
+                openHotelInAppleMaps()
+            }
+        }
+    }
+
+    private var appleMapsURL: URL? {
         let encodedQuery = hotel.mapsQuery.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? hotel.mapsQuery
-        return URL(string: "maps://?q=\(encodedQuery)") ?? URL(string: "https://maps.apple.com/?q=\(encodedQuery)")!
+        return URL(string: "https://maps.apple.com/?q=\(encodedQuery)")
+    }
+
+    private var googleMapsURL: URL? {
+        let encodedQuery = hotel.mapsQuery.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? hotel.mapsQuery
+        return URL(string: "comgooglemaps://?q=\(encodedQuery)")
+    }
+
+    private var webMapsURL: URL? {
+        let encodedQuery = hotel.mapsQuery.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? hotel.mapsQuery
+        return URL(string: "https://www.google.com/maps/search/?api=1&query=\(encodedQuery)")
     }
 }
 
@@ -241,4 +301,14 @@ private enum HotelContactAction {
             return URL(string: "mailto:\(encodedEmail)")
         }
     }
+}
+
+private struct SafariView: UIViewControllerRepresentable {
+    let url: URL
+
+    func makeUIViewController(context: Context) -> SFSafariViewController {
+        SFSafariViewController(url: url)
+    }
+
+    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) { }
 }

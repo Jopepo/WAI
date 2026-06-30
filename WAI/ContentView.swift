@@ -11,8 +11,12 @@ struct ContentView: View {
     @State private var selectedHour = 6
     @State private var selectedMinute = 0
     @State private var etdDate = Date()
+    @State private var roomNumber = ""
     @AppStorage("wai.timeInputReference") private var timeInputReferenceRawValue = TimeInputReference.utc.rawValue
     @State private var showingTimePicker = false
+    @State private var showingDatePicker = false
+    @State private var didConfirmTime = false
+    @State private var didConfirmDate = false
     @State private var selectedAlternative = "__DEFAULT__"
     @State private var showingFeedbackFallback = false
     @State private var showingSettings = false
@@ -32,8 +36,34 @@ struct ContentView: View {
         String(format: "%02d:%02d", selectedHour, selectedMinute)
     }
 
+    var timeInputReferenceDisplayLabel: String {
+        let title = timeInputReference.title.lowercased()
+
+        if title.contains("local") {
+            return selectedStationObject?.iata ?? "Local"
+        }
+
+        if title.contains("lisbon") || title.contains("lis") {
+            return "LIS"
+        }
+
+        return "UTC"
+    }
+
     var selectedStationObject: Station? {
         stations.first { $0.iata == selectedStation }
+    }
+
+    var mainContentTopPadding: CGFloat {
+        if selectedStation == "WhereAmI?" {
+            return 120
+        }
+
+        if !isReadyToCalculate {
+            return 28
+        }
+
+        return 0
     }
 
     var body: some View {
@@ -42,18 +72,20 @@ struct ContentView: View {
                 VStack(spacing: 24) {
                     topBar
 
-                    Text("WAI")
-                        .font(.largeTitle)
-                        .bold()
+                    VStack(spacing: 12) {
+                        Text("WAI")
+                            .font(.largeTitle)
+                            .bold()
 
-                    Text("Where am I?")
-                        .font(.title3)
+                        Text("Where am I?")
+                            .font(.title3)
 
-                    Text("")
-                        .font(.system(size: 50))
-
-                    Text("Wakeup/Pickup Calculator")
-                        .foregroundStyle(.secondary)
+                        Text("Wakeup/Pickup Calculator")
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, mainContentTopPadding)
 
                     Picker("Destination", selection: $selectedStation) {
                         Text("WhereAmI?").tag("WhereAmI?")
@@ -66,6 +98,8 @@ struct ContentView: View {
                         selectedAlternative = defaultAlternativeTag
                         showingFlightDetails = false
                         isReadyToCalculate = false
+                        didConfirmTime = false
+                        didConfirmDate = false
                         didSaveCalculation = false
                     }
 
@@ -77,7 +111,10 @@ struct ContentView: View {
                         if let station = selectedStationObject {
                             if !isReadyToCalculate {
                                 transportOptionView(for: station)
-                                calculateButton
+
+                                if didConfirmTime && didConfirmDate {
+                                    calculateButton
+                                }
                             }
 
                             if isReadyToCalculate {
@@ -87,8 +124,6 @@ struct ContentView: View {
                     }
 
                     Spacer(minLength: 40)
-
-                    bottomInfoSection
                 }
                 .padding()
             }
@@ -142,10 +177,11 @@ struct ContentView: View {
                 .font(.headline)
 
             Button {
+                showingDatePicker = false
                 showingTimePicker.toggle()
                 isReadyToCalculate = false
             } label: {
-                Text(formattedTime)
+                Text("\(formattedTime) · \(timeInputReferenceDisplayLabel)")
                     .font(.title2)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
@@ -153,16 +189,40 @@ struct ContentView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             }
 
-            DatePicker(
-                "",
-                selection: $etdDate,
-                displayedComponents: .date
-            )
-            .labelsHidden()
-            .datePickerStyle(.compact)
-            .onChange(of: etdDate) {
+            Button {
+                showingTimePicker = false
+                showingDatePicker.toggle()
                 isReadyToCalculate = false
-                showingFlightDetails = false
+            } label: {
+                Text(formattedETDDate)
+                    .font(.headline)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 8)
+                    .background(.gray.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+
+            if showingDatePicker {
+                VStack(spacing: 10) {
+                    DatePicker(
+                        "",
+                        selection: $etdDate,
+                        displayedComponents: .date
+                    )
+                    .labelsHidden()
+                    .datePickerStyle(.graphical)
+                    .onChange(of: etdDate) {
+                        isReadyToCalculate = false
+                        showingFlightDetails = false
+                        didConfirmDate = false
+                    }
+
+                    Button("Confirm") {
+                        showingDatePicker = false
+                        didConfirmDate = true
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
             }
 
             if showingTimePicker {
@@ -178,6 +238,7 @@ struct ContentView: View {
                         .onChange(of: selectedHour) {
                             isReadyToCalculate = false
                             showingFlightDetails = false
+                            didConfirmTime = false
                         }
 
                         Text(":")
@@ -194,23 +255,27 @@ struct ContentView: View {
                         .onChange(of: selectedMinute) {
                             isReadyToCalculate = false
                             showingFlightDetails = false
+                            didConfirmTime = false
                         }
                     }
                     .frame(height: 120)
 
                     Button("Confirm") {
                         showingTimePicker = false
+                        didConfirmTime = true
                     }
                     .buttonStyle(.borderedProminent)
                 }
             }
         }
         .padding(.horizontal)
+        .frame(maxWidth: .infinity)
     }
 
     var calculateButton: some View {
         Button {
             showingTimePicker = false
+            showingDatePicker = false
             showingFlightDetails = false
             isReadyToCalculate = true
         } label: {
@@ -243,25 +308,11 @@ struct ContentView: View {
                     }
                 }
                 .padding(.horizontal)
+                .frame(maxWidth: .infinity)
             }
         }
     }
 
-    var bottomInfoSection: some View {
-        VStack(spacing: 12) {
-            Text("Transport Times: REV70 · 29 Jun 2026")
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(.gray.opacity(0.12))
-                .clipShape(Capsule())
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.top, 8)
-        .padding(.bottom, 24)
-    }
 
     var historySection: some View {
         VStack(spacing: 12) {
@@ -331,6 +382,11 @@ struct ContentView: View {
 
             Text("Pick-up: \(item.pickupTimeText)")
                 .font(.caption)
+
+            if let roomNumber = item.roomNumber, !roomNumber.isEmpty {
+                Text("Room: \(roomNumber)")
+                    .font(.caption)
+            }
 
             if let appliedRuleLabel = item.appliedRuleLabel {
                 Text("Rule: \(appliedRuleLabel)")
@@ -523,6 +579,8 @@ struct ContentView: View {
             .background(.red.opacity(0.16))
             .clipShape(RoundedRectangle(cornerRadius: 16))
 
+            roomNumberCard
+
             HStack(spacing: 12) {
                 Button {
                     resetCalculatorForNextInput()
@@ -556,6 +614,27 @@ struct ContentView: View {
         .background(.gray.opacity(0.08))
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
+
+    var roomNumberCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Room number")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            TextField("Optional", text: $roomNumber)
+                .textFieldStyle(.roundedBorder)
+                .keyboardType(.numbersAndPunctuation)
+
+            Text("Add your room number if you want it saved with this calculation.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.gray.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
     func hotelCard(for station: Station, hotel: Hotel?) -> some View {
         Group {
             if let hotel {
@@ -568,7 +647,7 @@ struct ContentView: View {
                             .foregroundStyle(.secondary)
 
                         HStack {
-                            Text(hotel.name)
+                            Text(hotel.displayName)
                                 .font(.headline)
                                 .multilineTextAlignment(.leading)
 
@@ -605,7 +684,7 @@ struct ContentView: View {
 
     func defaultTransportOptionLabel(for station: Station) -> String {
         if let hotel = hotel(for: station) {
-            return hotel.name
+            return hotel.displayName
         }
 
         return "Default"
@@ -649,6 +728,8 @@ struct ContentView: View {
 
 
     func saveCalculation(_ result: CalculationResult, for station: Station) {
+        let trimmedRoomNumber = roomNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+
         let item = CalculationHistoryItem(
             stationIATA: station.iata,
             stationCity: station.city,
@@ -657,6 +738,7 @@ struct ContentView: View {
             inputTimeText: String(format: "%02d:%02d", selectedHour, selectedMinute),
             pickupTimeText: result.pickup,
             wakeupTimeText: result.wakeup,
+            roomNumber: trimmedRoomNumber.isEmpty ? nil : trimmedRoomNumber,
             appliedRuleLabel: result.appliedRuleLabel
         )
 
@@ -668,7 +750,11 @@ struct ContentView: View {
         selectedHour = 6
         selectedMinute = 0
         etdDate = Date()
+        roomNumber = ""
         showingTimePicker = false
+        showingDatePicker = false
+        didConfirmTime = false
+        didConfirmDate = false
         selectedAlternative = defaultAlternativeTag
         showingFlightDetails = false
         isReadyToCalculate = false
