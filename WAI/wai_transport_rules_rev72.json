@@ -3,9 +3,9 @@
   "product": "WAI",
   "concept": "Wakeup/Pickup Calculator",
   "source": {
-    "document": "FO/CP/CRS Nº141 REV70 29JUN26",
-    "revision": "REV70",
-    "date": "2026-06-29"
+    "document": "FO/CP/CRS Nº141 REV72 06JUL26",
+    "revision": "REV72",
+    "date": "2026-07-06"
   },
   "defaults": {
     "airportBufferMinutes": 60,
@@ -51,7 +51,7 @@
       "summerUtcOffset": "+03:00",
       "defaultRule": {
         "type": "fixed",
-        "transportMinutes": 40
+        "transportMinutes": 50
       },
       "alternatives": []
     },
@@ -260,8 +260,21 @@
       "standardUtcOffset": "-05:00",
       "summerUtcOffset": "-04:00",
       "defaultRule": {
-        "type": "fixed",
-        "transportMinutes": 90
+        "type": "timeDependent",
+        "rules": [
+          {
+            "label": "Night 21:00–06:00",
+            "fromLocal": "21:00",
+            "toLocal": "06:00",
+            "transportMinutes": 70
+          },
+          {
+            "label": "Standard",
+            "fromLocal": "06:01",
+            "toLocal": "20:59",
+            "transportMinutes": 90
+          }
+        ]
       },
       "alternatives": []
     },

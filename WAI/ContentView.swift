@@ -314,6 +314,20 @@ struct ContentView: View {
     }
 
 
+    var latestSavedCalculation: CalculationHistoryItem? {
+        historyStore.history.max { first, second in
+            first.createdAt < second.createdAt
+        }
+    }
+
+    var previousSavedCalculations: [CalculationHistoryItem] {
+        guard let latestSavedCalculation else { return [] }
+
+        return historyStore.history
+            .filter { $0.id != latestSavedCalculation.id }
+            .sorted { $0.createdAt < $1.createdAt }
+    }
+
     var historySection: some View {
         VStack(spacing: 12) {
             if historyStore.history.isEmpty {
@@ -330,38 +344,67 @@ struct ContentView: View {
                 .background(.gray.opacity(0.08))
                 .clipShape(RoundedRectangle(cornerRadius: 18))
             } else {
-                VStack(spacing: 10) {
-                    ForEach(historyStore.history) { item in
+                if let latestSavedCalculation {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Latest stay")
+                            .font(.headline)
+
                         HStack(alignment: .top, spacing: 12) {
-                            historyRow(item)
+                            historyRow(latestSavedCalculation)
 
                             Button(role: .destructive) {
-                                historyStore.delete(item)
+                                historyStore.delete(latestSavedCalculation)
                                 didSaveCalculation = false
                             } label: {
                                 Image(systemName: "trash")
                                     .font(.subheadline)
                             }
                             .buttonStyle(.borderless)
-                            .accessibilityLabel("Delete calculation")
-                        }
-                        .padding(.vertical, 4)
-
-                        if item.id != historyStore.history.last?.id {
-                            Divider()
+                            .accessibilityLabel("Delete latest stay")
                         }
                     }
-
-                    Button("Clear calculations", role: .destructive) {
-                        historyStore.clearHistory()
-                        didSaveCalculation = false
-                    }
-                    .buttonStyle(.bordered)
-                    .padding(.top, 6)
+                    .padding()
+                    .background(.gray.opacity(0.08))
+                    .clipShape(RoundedRectangle(cornerRadius: 18))
                 }
-                .padding()
-                .background(.gray.opacity(0.08))
-                .clipShape(RoundedRectangle(cornerRadius: 18))
+
+                if !previousSavedCalculations.isEmpty {
+                    DisclosureGroup("Show previous stays") {
+                        VStack(spacing: 10) {
+                            ForEach(previousSavedCalculations) { item in
+                                HStack(alignment: .top, spacing: 12) {
+                                    historyRow(item)
+
+                                    Button(role: .destructive) {
+                                        historyStore.delete(item)
+                                        didSaveCalculation = false
+                                    } label: {
+                                        Image(systemName: "trash")
+                                            .font(.subheadline)
+                                    }
+                                    .buttonStyle(.borderless)
+                                    .accessibilityLabel("Delete saved stay")
+                                }
+                                .padding(.vertical, 4)
+
+                                if item.id != previousSavedCalculations.last?.id {
+                                    Divider()
+                                }
+                            }
+                        }
+                        .padding(.top, 8)
+                    }
+                    .padding()
+                    .background(.gray.opacity(0.08))
+                    .clipShape(RoundedRectangle(cornerRadius: 18))
+                }
+
+                Button("Clear calculations", role: .destructive) {
+                    historyStore.clearHistory()
+                    didSaveCalculation = false
+                }
+                .buttonStyle(.bordered)
+                .padding(.top, 6)
             }
         }
         .padding(.horizontal)

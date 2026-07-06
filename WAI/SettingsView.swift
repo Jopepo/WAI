@@ -88,8 +88,8 @@ struct SettingsView: View {
                 documentRow(
                     title: "Transport Times",
                     document: "FO/CP/CRS Nº141",
-                    revision: "REV70",
-                    date: "29 Jun 2026"
+                    revision: "REV72",
+                    date: "06 Jul 2026"
                 )
 
                 Divider()
@@ -186,7 +186,7 @@ struct SettingsView: View {
 
         I want to send feedback about WAI.
 
-        Transport document: FO/CP/CRS Nº141 REV70 · 29 Jun 2026
+        Transport document: FO/CP/CRS Nº141 REV71 · 03 Jul 2026
         App version: \(appVersionLabel)
 
         Feedback / bug:

@@ -25,6 +25,30 @@ struct WhatsNewItem: Identifiable, Codable {
 extension WhatsNewItem {
     static let current: [WhatsNewItem] = [
         WhatsNewItem(
+            id: "rev72-ath-update",
+            title: "ATH transport time updated",
+            detail: "Athens transport time updated to 50 minutes.",
+            priority: .medium,
+            category: .transport,
+            documentRevision: "REV72"
+        ),
+        WhatsNewItem(
+            id: "rev72-transport-document",
+            title: "Transport Times updated",
+            detail: "Transport rules updated to FO/CP/CRS Nº141 REV72 · 06 Jul 2026.",
+            priority: .low,
+            category: .document,
+            documentRevision: "REV72"
+        ),
+        WhatsNewItem(
+            id: "rev71-ewr-night-update",
+            title: "EWR transport time updated",
+            detail: "Newark now uses 70 minutes between 21:00 and 06:00 local time. Standard transport time remains 90 minutes.",
+            priority: .medium,
+            category: .transport,
+            documentRevision: "REV71"
+        ),
+        WhatsNewItem(
             id: "wai-v21-fixes",
             title: "WAI 2.1",
             detail: "Fixed hotel map opening behaviour, improved hotel name display, and added optional room numbers to saved calculations.",
@@ -71,14 +95,6 @@ extension WhatsNewItem {
             priority: .high,
             category: .transport,
             documentRevision: "REV70 / REV51"
-        ),
-        WhatsNewItem(
-            id: "rev70-transport-document",
-            title: "Transport Times updated",
-            detail: "Transport rules updated to FO/CP/CRS Nº141 REV70 · 29 Jun 2026.",
-            priority: .low,
-            category: .document,
-            documentRevision: "REV70"
         ),
         WhatsNewItem(
             id: "rev51-hotel-document",
