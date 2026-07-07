@@ -2,8 +2,11 @@ import SwiftUI
 
 struct WhatsNewView: View {
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var dataService = WhatsNewDataService.shared
 
-    let items: [WhatsNewItem] = WhatsNewItem.current
+    private var items: [WhatsNewItem] {
+        dataService.items
+    }
 
     var body: some View {
         NavigationStack {
@@ -26,6 +29,9 @@ struct WhatsNewView: View {
                     }
                 }
             }
+        }
+        .task {
+            await dataService.refreshRemoteData()
         }
     }
 

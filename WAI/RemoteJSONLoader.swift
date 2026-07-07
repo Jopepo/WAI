@@ -177,6 +177,10 @@ enum RemoteDataConfiguration {
         configuredURL(for: "WAIRemoteHotelMapURL")
     }
 
+    static var whatsNewURL: URL? {
+        configuredURL(for: "WAIRemoteWhatsNewURL")
+    }
+
     private static func configuredURL(for key: String) -> URL? {
         guard let rawValue = Bundle.main.object(forInfoDictionaryKey: key) as? String,
               !rawValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {

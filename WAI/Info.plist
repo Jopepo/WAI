@@ -6,5 +6,7 @@
     <string>https://raw.githubusercontent.com/Jopepo/WAI/main/WAI/wai_transport_rules_current.json</string>
     <key>WAIRemoteHotelMapURL</key>
     <string>https://raw.githubusercontent.com/Jopepo/WAI/main/WAI/wai_hotel_map_current.json</string>
+    <key>WAIRemoteWhatsNewURL</key>
+    <string>https://raw.githubusercontent.com/Jopepo/WAI/main/WAI/wai_whats_new_current.json</string>
 </dict>
 </plist>
