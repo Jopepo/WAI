@@ -30,6 +30,33 @@ struct TransportRule: Codable {
 
     let rules: [TimeRule]?
     let conditions: [TransportCondition]?
+
+    var isValid: Bool {
+        let conditionsAreValid = (conditions ?? []).allSatisfy(\.isValid)
+
+        switch type {
+        case "fixed":
+            return transportMinutes.map { $0 >= 0 } == true && conditionsAreValid
+        case "range":
+            guard let minTransportMinutes,
+                  let maxTransportMinutes else {
+                return false
+            }
+
+            return minTransportMinutes >= 0
+            && maxTransportMinutes >= minTransportMinutes
+            && conditionsAreValid
+        case "timeDependent":
+            guard let rules,
+                  !rules.isEmpty else {
+                return false
+            }
+
+            return rules.allSatisfy(\.isValid) && conditionsAreValid
+        default:
+            return false
+        }
+    }
 }
 
 struct TimeRule: Codable {
@@ -44,6 +71,12 @@ struct TimeRule: Codable {
     let publicHolidaysOnly: Bool?
 
     let transportMinutes: Int
+
+    var isValid: Bool {
+        transportMinutes >= 0
+        && TransportTimeFormat.isValidOptionalTime(fromLocal)
+        && TransportTimeFormat.isValidOptionalTime(toLocal)
+    }
 }
 
 struct TransportCondition: Codable, Identifiable {
@@ -57,6 +90,13 @@ struct TransportCondition: Codable, Identifiable {
     let appliesOnWeekends: Bool?
     let appliesOnPublicHolidays: Bool?
     let transportMinutes: Int
+
+    var isValid: Bool {
+        !label.isEmpty
+        && transportMinutes >= 0
+        && TransportTimeFormat.isValidOptionalTime(fromLocal)
+        && TransportTimeFormat.isValidOptionalTime(toLocal)
+    }
 }
 
 struct StationHoliday: Codable, Identifiable {
@@ -65,6 +105,35 @@ struct StationHoliday: Codable, Identifiable {
 
     let date: String
     let name: String
+
+    var isValid: Bool {
+        !name.isEmpty && TransportTimeFormat.isValidISODate(date)
+    }
+}
+
+enum TransportTimeFormat {
+    static func isValidOptionalTime(_ value: String?) -> Bool {
+        guard let value else {
+            return true
+        }
+
+        let components = value.split(separator: ":")
+        guard components.count == 2,
+              let hour = Int(components[0]),
+              let minute = Int(components[1]) else {
+            return false
+        }
+
+        return (0...23).contains(hour) && (0...59).contains(minute)
+    }
+
+    static func isValidISODate(_ value: String) -> Bool {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        return formatter.date(from: value) != nil
+    }
 }
 
 enum TimeInputReference: String, Codable, CaseIterable, Identifiable {

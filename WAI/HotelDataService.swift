@@ -8,6 +8,28 @@ extension HotelDocument: OperationalDataDocument {
             date: date
         )
     }
+
+    var isValid: Bool {
+        guard !document.isEmpty,
+              !revision.isEmpty,
+              TransportTimeFormat.isValidISODate(date),
+              !hotels.isEmpty else {
+            return false
+        }
+
+        let iataCodes = hotels.map(\.iata)
+        guard Set(iataCodes).count == iataCodes.count else {
+            return false
+        }
+
+        return hotels.allSatisfy { hotel in
+            hotel.iata.count == 3
+            && hotel.icao.count == 4
+            && !hotel.city.isEmpty
+            && !hotel.country.isEmpty
+            && !hotel.name.isEmpty
+        }
+    }
 }
 
 @MainActor
@@ -40,16 +62,18 @@ final class HotelDataService: ObservableObject {
         hotels.first { $0.iata == stationIATA }
     }
 
-    func refreshRemoteData() async {
+    @discardableResult
+    func refreshRemoteData() async -> Bool {
         guard let dataset = await RemoteJSONLoader.refreshRemote(
             documentType: HotelDocument.self,
             remoteURL: RemoteDataConfiguration.hotelMapURL,
             cacheFileName: Self.cacheFileName
         ) else {
-            return
+            return false
         }
 
         apply(dataset)
+        return true
     }
 
     private func loadInitialHotels() {

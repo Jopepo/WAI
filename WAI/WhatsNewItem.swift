@@ -20,6 +20,19 @@ struct WhatsNewDocument: Codable, OperationalDataDocument {
     var sourceInfo: OperationalDataDocumentSource? {
         source
     }
+
+    var isValid: Bool {
+        guard !items.isEmpty else {
+            return false
+        }
+
+        let ids = items.map(\.id)
+        guard Set(ids).count == ids.count else {
+            return false
+        }
+
+        return items.allSatisfy(\.isValid)
+    }
 }
 
 struct WhatsNewItem: Identifiable, Codable {
@@ -29,4 +42,11 @@ struct WhatsNewItem: Identifiable, Codable {
     let priority: WhatsNewPriority
     let category: WhatsNewCategory
     let documentRevision: String
+
+    var isValid: Bool {
+        !id.isEmpty
+        && !title.isEmpty
+        && !detail.isEmpty
+        && !documentRevision.isEmpty
+    }
 }
