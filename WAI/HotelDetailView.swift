@@ -5,7 +5,10 @@ import SafariServices
 struct HotelDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
+    @StateObject private var hotelStayStore = HotelStayStore.shared
     @State private var pendingContactAction: HotelContactAction?
+    @State private var stayPendingDeletion: HotelStay?
+    @State private var revealedStayID: HotelStay.ID?
     @State private var showingMapOptions = false
     @State private var showingWebMaps = false
 
@@ -17,6 +20,7 @@ struct HotelDetailView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     headerSection
                     contactSection
+                    previousStaysSection
                     mapsSection
                 }
                 .padding()
@@ -65,6 +69,37 @@ struct HotelDetailView: View {
                 SafariView(url: webMapsURL)
             }
         }
+        .alert(
+            "Delete stay?",
+            isPresented: Binding(
+                get: { stayPendingDeletion != nil },
+                set: { newValue in
+                    if !newValue {
+                        stayPendingDeletion = nil
+                    }
+                }
+            )
+        ) {
+            Button("Cancel", role: .cancel) {
+                stayPendingDeletion = nil
+            }
+
+            Button("Delete", role: .destructive) {
+                if let stay = stayPendingDeletion {
+                    hotelStayStore.delete(stay)
+                    if revealedStayID == stay.id {
+                        revealedStayID = nil
+                    }
+                }
+                stayPendingDeletion = nil
+            }
+        } message: {
+            if let stay = stayPendingDeletion {
+                Text("Are you sure you want to delete Room \(stay.roomNumber) from this hotel history?")
+            } else {
+                Text("Are you sure you want to delete this stay from the hotel history?")
+            }
+        }
     }
 
     private var headerSection: some View {
@@ -102,6 +137,78 @@ struct HotelDetailView: View {
                 if let fax = hotel.fax, !fax.isEmpty {
                     detailRow(title: "Fax", value: fax, systemImage: "printer")
                 }
+            }
+        }
+    }
+
+    private var previousStaysSection: some View {
+        let stays = hotelStayStore.stays(for: hotel)
+
+        return Group {
+            if !stays.isEmpty {
+                detailCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Previous stays")
+                            .font(.headline)
+
+                        ForEach(stays) { stay in
+                            stayHistoryRow(stay)
+
+                            if stay.id != stays.last?.id {
+                                Divider()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func stayHistoryRow(_ stay: HotelStay) -> some View {
+        HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("Room \(stay.roomNumber)")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+
+                    Spacer()
+
+                    Text(formattedDate(stay.registeredAt))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Text("ETD: \(formattedETD(stay))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+            .offset(x: revealedStayID == stay.id ? -88 : 0)
+            .gesture(
+                DragGesture(minimumDistance: 20)
+                    .onEnded { value in
+                        withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                            if value.translation.width < -40 {
+                                revealedStayID = stay.id
+                            } else if value.translation.width > 40 {
+                                revealedStayID = nil
+                            }
+                        }
+                    }
+            )
+
+            if revealedStayID == stay.id {
+                Button(role: .destructive) {
+                    stayPendingDeletion = stay
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                        .labelStyle(.iconOnly)
+                        .frame(width: 72, height: 44)
+                }
+                .buttonStyle(.borderedProminent)
+                .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
     }
@@ -204,6 +311,22 @@ struct HotelDetailView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(.gray.opacity(0.08))
             .clipShape(RoundedRectangle(cornerRadius: 18))
+    }
+
+    private func formattedETD(_ stay: HotelStay) -> String {
+        if let etdTimeText = stay.etdTimeText,
+           !etdTimeText.isEmpty {
+            return "\(formattedDate(stay.etdDate)) · \(etdTimeText)"
+        }
+
+        return formattedDate(stay.etdDate)
+    }
+
+    private func formattedDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter.string(from: date)
     }
 
     private func openHotelInAppleMaps() {

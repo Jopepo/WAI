@@ -33,6 +33,21 @@ final class CalculationHistoryStore: ObservableObject {
         persist()
     }
 
+    func updateRoomNumber(for item: CalculationHistoryItem, roomNumber: String?) -> CalculationHistoryItem? {
+        guard let index = history.firstIndex(where: { $0.id == item.id }) else {
+            return nil
+        }
+
+        history[index].roomNumber = roomNumber
+
+        if lastCalculation?.id == item.id {
+            lastCalculation = history[index]
+        }
+
+        persist()
+        return history[index]
+    }
+
     func delete(_ item: CalculationHistoryItem) {
         history.removeAll { $0.id == item.id }
 

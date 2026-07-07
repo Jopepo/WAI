@@ -167,7 +167,7 @@ struct CalculationHistoryItem: Codable, Identifiable {
     let inputTimeText: String
     let pickupTimeText: String
     let wakeupTimeText: String
-    let roomNumber: String?
+    var roomNumber: String?
     let appliedRuleLabel: String?
 
     init(

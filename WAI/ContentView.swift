@@ -27,12 +27,18 @@ struct ContentView: View {
     @State private var showingFeedbackFallback = false
     @State private var showingSettings = false
     @State private var showingHistory = false
+    @State private var showingHotels = false
+    @State private var showingStationPicker = false
     @State private var showingWhatsNew = false
     @State private var showingFlightDetails = false
     @State private var didSaveCalculation = false
     @State private var isReadyToCalculate = false
     @State private var selectedHotel: Hotel?
+    @State private var editingRoomNumberItem: CalculationHistoryItem?
+    @State private var calculationPendingDeletion: CalculationHistoryItem?
+    @State private var revealedCalculationID: CalculationHistoryItem.ID?
     @StateObject private var historyStore = CalculationHistoryStore()
+    @StateObject private var hotelStayStore = HotelStayStore.shared
 
     var stations: [Station] {
         dataService.stations
@@ -97,13 +103,34 @@ struct ContentView: View {
                     .multilineTextAlignment(.center)
                     .padding(.top, mainContentTopPadding)
 
-                    Picker("Destination", selection: $selectedStation) {
-                        Text("WhereAmI?").tag("WhereAmI?")
-                        ForEach(stations) { station in
-                            Text("\(station.iata) - \(station.city)").tag(station.iata)
+                    Button {
+                        showingStationPicker = true
+                    } label: {
+                        VStack(spacing: 5) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "airplane.departure")
+                                    .foregroundStyle(.secondary)
+
+                                Text(selectedStation == "WhereAmI?" ? "Select station" : selectedStation)
+                                    .font(.headline)
+                                    .foregroundStyle(.primary)
+
+                                Image(systemName: "chevron.down")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .center)
+
+                            Text(selectedStationObject.map { "\($0.city), \($0.country)" } ?? "Destination")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
                         }
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity)
                     }
-                    .pickerStyle(.menu)
+                    .buttonStyle(.plain)
+                    .padding(.horizontal)
                     .onChange(of: selectedStation) {
                         selectedAlternative = defaultAlternativeTag
                         showingFlightDetails = false
@@ -144,6 +171,12 @@ struct ContentView: View {
         .sheet(isPresented: $showingDatePicker) {
             datePickerSheet
         }
+        .sheet(isPresented: $showingStationPicker) {
+            StationSelectionView(
+                selectedStation: $selectedStation,
+                stations: stations
+            )
+        }
         .sheet(isPresented: $showingSettings) {
             SettingsView(timeInputReferenceRawValue: $timeInputReferenceRawValue)
         }
@@ -156,6 +189,9 @@ struct ContentView: View {
             if !showingSettings {
                 didSaveCalculation = false
             }
+        }
+        .sheet(isPresented: $showingHotels) {
+            HotelsView()
         }
         .sheet(isPresented: $showingHistory) {
             NavigationStack {
@@ -170,6 +206,11 @@ struct ContentView: View {
                         Button("Done") {
                             showingHistory = false
                         }
+                    }
+                }
+                .sheet(item: $editingRoomNumberItem) { item in
+                    RoomNumberEditView(item: item) { updatedItem, roomNumber in
+                        saveRoomNumber(roomNumber, for: updatedItem)
                     }
                 }
             }
@@ -189,6 +230,39 @@ struct ContentView: View {
         }
         .sheet(item: $selectedHotel) { hotel in
             HotelDetailView(hotel: hotel)
+        }
+        .alert(
+            "Delete calculation?",
+            isPresented: Binding(
+                get: { calculationPendingDeletion != nil },
+                set: { newValue in
+                    if !newValue {
+                        calculationPendingDeletion = nil
+                    }
+                }
+            )
+        ) {
+            Button("Cancel", role: .cancel) {
+                calculationPendingDeletion = nil
+            }
+
+            Button("Delete", role: .destructive) {
+                if let item = calculationPendingDeletion {
+                    hotelStayStore.detachCalculation(item)
+                    historyStore.delete(item)
+                    if revealedCalculationID == item.id {
+                        revealedCalculationID = nil
+                    }
+                    didSaveCalculation = false
+                }
+                calculationPendingDeletion = nil
+            }
+        } message: {
+            if let item = calculationPendingDeletion {
+                Text("Are you sure you want to delete the saved calculation for \(item.stationIATA)?")
+            } else {
+                Text("Are you sure you want to delete this saved calculation?")
+            }
         }
     }
 
@@ -399,19 +473,7 @@ struct ContentView: View {
                         Text("Latest stay")
                             .font(.headline)
 
-                        HStack(alignment: .top, spacing: 12) {
-                            historyRow(latestSavedCalculation)
-
-                            Button(role: .destructive) {
-                                historyStore.delete(latestSavedCalculation)
-                                didSaveCalculation = false
-                            } label: {
-                                Image(systemName: "trash")
-                                    .font(.subheadline)
-                            }
-                            .buttonStyle(.borderless)
-                            .accessibilityLabel("Delete latest stay")
-                        }
+                        calculationHistorySwipeRow(latestSavedCalculation)
                     }
                     .padding()
                     .background(.gray.opacity(0.08))
@@ -422,20 +484,8 @@ struct ContentView: View {
                     DisclosureGroup("Show previous stays") {
                         VStack(spacing: 10) {
                             ForEach(previousSavedCalculations) { item in
-                                HStack(alignment: .top, spacing: 12) {
-                                    historyRow(item)
-
-                                    Button(role: .destructive) {
-                                        historyStore.delete(item)
-                                        didSaveCalculation = false
-                                    } label: {
-                                        Image(systemName: "trash")
-                                            .font(.subheadline)
-                                    }
-                                    .buttonStyle(.borderless)
-                                    .accessibilityLabel("Delete saved stay")
-                                }
-                                .padding(.vertical, 4)
+                                calculationHistorySwipeRow(item)
+                                    .padding(.vertical, 4)
 
                                 if item.id != previousSavedCalculations.last?.id {
                                     Divider()
@@ -450,6 +500,9 @@ struct ContentView: View {
                 }
 
                 Button("Clear calculations", role: .destructive) {
+                    historyStore.history.forEach { item in
+                        hotelStayStore.detachCalculation(item)
+                    }
                     historyStore.clearHistory()
                     didSaveCalculation = false
                 }
@@ -458,6 +511,49 @@ struct ContentView: View {
             }
         }
         .padding(.horizontal)
+    }
+
+    func calculationHistorySwipeRow(_ item: CalculationHistoryItem) -> some View {
+        HStack(spacing: 0) {
+            HStack(alignment: .top, spacing: 12) {
+                historyRow(item)
+
+                Button {
+                    editingRoomNumberItem = item
+                } label: {
+                    Image(systemName: "pencil")
+                        .font(.subheadline)
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Edit room number")
+            }
+            .offset(x: revealedCalculationID == item.id ? -88 : 0)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 20)
+                    .onEnded { value in
+                        withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                            if value.translation.width < -40 {
+                                revealedCalculationID = item.id
+                            } else if value.translation.width > 40 {
+                                revealedCalculationID = nil
+                            }
+                        }
+                    }
+            )
+
+            if revealedCalculationID == item.id {
+                Button(role: .destructive) {
+                    calculationPendingDeletion = item
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                        .labelStyle(.iconOnly)
+                        .frame(width: 72, height: 44)
+                }
+                .buttonStyle(.borderedProminent)
+                .transition(.move(edge: .trailing).combined(with: .opacity))
+            }
+        }
     }
 
     func historyRow(_ item: CalculationHistoryItem) -> some View {
@@ -593,6 +689,18 @@ struct ContentView: View {
                     .clipShape(Circle())
             }
             .accessibilityLabel("What's New")
+
+            Button {
+                showingHotels = true
+            } label: {
+                Image(systemName: "bed.double")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                    .padding(10)
+                    .background(.gray.opacity(0.10))
+                    .clipShape(Circle())
+            }
+            .accessibilityLabel("Hotels")
 
             Button {
                 showingHistory = true
@@ -784,7 +892,11 @@ struct ContentView: View {
     }
 
     func hotel(for station: Station) -> Hotel? {
-        hotelDataService.hotel(for: station.iata.uppercased())
+        hotel(forStationIATA: station.iata)
+    }
+
+    func hotel(forStationIATA stationIATA: String) -> Hotel? {
+        hotelDataService.hotel(for: stationIATA.uppercased())
     }
 
 
@@ -836,6 +948,41 @@ struct ContentView: View {
         )
 
         historyStore.save(item)
+
+        if let hotel = hotel(for: station) {
+            hotelStayStore.upsertStay(
+                for: item,
+                hotel: hotel,
+                roomNumber: trimmedRoomNumber
+            )
+        }
+    }
+
+    func saveRoomNumber(_ roomNumber: String, for item: CalculationHistoryItem) {
+        let trimmedRoomNumber = roomNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedRoomNumber = trimmedRoomNumber.isEmpty ? nil : trimmedRoomNumber
+
+        guard let updatedItem = historyStore.updateRoomNumber(
+            for: item,
+            roomNumber: normalizedRoomNumber
+        ) else {
+            return
+        }
+
+        guard let normalizedRoomNumber else {
+            hotelStayStore.removeStay(for: updatedItem)
+            return
+        }
+
+        guard let hotel = hotel(forStationIATA: updatedItem.stationIATA) else {
+            return
+        }
+
+        hotelStayStore.upsertStay(
+            for: updatedItem,
+            hotel: hotel,
+            roomNumber: normalizedRoomNumber
+        )
     }
 
     func resetCalculatorForNextInput() {

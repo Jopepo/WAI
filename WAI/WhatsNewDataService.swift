@@ -5,6 +5,7 @@ final class WhatsNewDataService: ObservableObject {
     static let shared = WhatsNewDataService()
 
     @Published private(set) var items: [WhatsNewItem] = []
+    @Published private(set) var maxVisibleItems = 10
     @Published private(set) var sourceInfo = OperationalDataSourceInfo(
         kind: .bundled,
         document: "WAI What's New",
@@ -60,6 +61,7 @@ final class WhatsNewDataService: ObservableObject {
         }
 
         items = dataset.document.items
+        maxVisibleItems = dataset.document.maxVisibleItems ?? 10
         sourceInfo = dataset.sourceInfo
         print("Loaded \(dataset.document.items.count) what's new items from \(dataset.sourceInfo.sourceLabel)")
     }

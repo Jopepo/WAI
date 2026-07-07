@@ -16,6 +16,7 @@ struct SettingsView: View {
     @State private var isRefreshingData = false
     @State private var refreshStatusMessage: String?
     @State private var lastRefreshCheck: Date?
+    @State private var showingDataStatus = false
 
     private var timeInputReference: Binding<TimeInputReference> {
         Binding(
@@ -49,6 +50,9 @@ struct SettingsView: View {
                     }
                 }
             }
+        }
+        .sheet(isPresented: $showingDataStatus) {
+            DataStatusView(lastRefreshCheck: lastRefreshCheck)
         }
     }
 
@@ -93,6 +97,13 @@ struct SettingsView: View {
                         .font(.headline)
 
                     Spacer()
+
+                    Button {
+                        showingDataStatus = true
+                    } label: {
+                        Label("Status", systemImage: "info.circle")
+                    }
+                    .font(.subheadline)
 
                     Button {
                         refreshOperationalData()

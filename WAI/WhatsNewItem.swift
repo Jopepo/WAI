@@ -15,6 +15,7 @@ enum WhatsNewCategory: String, Codable {
 
 struct WhatsNewDocument: Codable, OperationalDataDocument {
     let source: OperationalDataDocumentSource?
+    let maxVisibleItems: Int?
     let items: [WhatsNewItem]
 
     var sourceInfo: OperationalDataDocumentSource? {

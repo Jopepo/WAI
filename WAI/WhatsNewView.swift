@@ -5,7 +5,7 @@ struct WhatsNewView: View {
     @StateObject private var dataService = WhatsNewDataService.shared
 
     private var items: [WhatsNewItem] {
-        dataService.items
+        Array(dataService.items.prefix(dataService.maxVisibleItems))
     }
 
     var body: some View {
