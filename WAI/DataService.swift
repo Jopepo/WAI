@@ -1,41 +1,76 @@
 import Foundation
 
-struct StationData: Codable {
+struct StationData: Codable, OperationalDataDocument {
+    let source: OperationalDataDocumentSource?
     let stations: [Station]
+
+    var sourceInfo: OperationalDataDocumentSource? {
+        source
+    }
 }
 
-final class DataService {
+@MainActor
+final class DataService: ObservableObject {
+    static let shared = DataService()
+
+    @Published private(set) var stations: [Station] = []
+    @Published private(set) var sourceInfo = OperationalDataSourceInfo(
+        kind: .bundled,
+        document: "FO/CP/CRS Nº141 REV72 06JUL26",
+        revision: "REV72",
+        date: "2026-07-06",
+        loadedAt: nil
+    )
+
+    private static let bundledResourceName = "wai_transport_rules_rev72"
+    private static let cacheFileName = "wai_transport_rules_current.json"
+    private static let bundledFallbackSource = OperationalDataDocumentSource(
+        document: "FO/CP/CRS Nº141 REV72 06JUL26",
+        revision: "REV72",
+        date: "2026-07-06"
+    )
+
+    private init() {
+        loadInitialStations()
+    }
 
     static func loadStations() -> [Station] {
+        loadInitialDataset()?.document.stations ?? []
+    }
 
-        guard let url = Bundle.main.url(
-            forResource: "wai_transport_rules_rev72",
-            withExtension: "json"
+    func refreshRemoteData() async {
+        guard let dataset = await RemoteJSONLoader.refreshRemote(
+            documentType: StationData.self,
+            remoteURL: RemoteDataConfiguration.transportRulesURL,
+            cacheFileName: Self.cacheFileName
         ) else {
-
-            print("JSON file not found")
-            return []
+            return
         }
 
-        do {
+        apply(dataset)
+    }
 
-            let data = try Data(contentsOf: url)
-
-            let decoded = try JSONDecoder().decode(
-                StationData.self,
-                from: data
-            )
-
-            print("Loaded \(decoded.stations.count) stations")
-
-            return decoded.stations
-
-        } catch {
-
-            print("FULL ERROR:")
-            dump(error)
-
-            return []
+    private func loadInitialStations() {
+        guard let dataset = Self.loadInitialDataset() else {
+            print("No valid transport data available")
+            return
         }
+
+        apply(dataset)
+    }
+
+    private func apply(_ dataset: RemoteJSONDataset<StationData>) {
+        stations = dataset.document.stations
+        sourceInfo = dataset.sourceInfo
+        print("Loaded \(dataset.document.stations.count) stations from \(dataset.sourceInfo.sourceLabel)")
+    }
+
+    private static func loadInitialDataset() -> RemoteJSONDataset<StationData>? {
+        RemoteJSONLoader.loadCachedOrBundled(
+            documentType: StationData.self,
+            cacheFileName: cacheFileName,
+            bundledResourceName: bundledResourceName,
+            bundledFallbackSource: bundledFallbackSource
+        )
     }
 }

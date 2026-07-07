@@ -1,33 +1,75 @@
 import Foundation
 
-final class HotelDataService {
+extension HotelDocument: OperationalDataDocument {
+    var sourceInfo: OperationalDataDocumentSource? {
+        OperationalDataDocumentSource(
+            document: document,
+            revision: revision,
+            date: date
+        )
+    }
+}
+
+@MainActor
+final class HotelDataService: ObservableObject {
     static let shared = HotelDataService()
 
-    private(set) var hotels: [Hotel] = []
-    private(set) var document: HotelDocument?
+    @Published private(set) var hotels: [Hotel] = []
+    @Published private(set) var document: HotelDocument?
+    @Published private(set) var sourceInfo = OperationalDataSourceInfo(
+        kind: .bundled,
+        document: "FO/CP/CRS Nº140 REV51 29JUN26",
+        revision: "REV51",
+        date: "2026-06-29",
+        loadedAt: nil
+    )
+
+    private static let bundledResourceName = "wai_hotel_map_rev51"
+    private static let cacheFileName = "wai_hotel_map_current.json"
+    private static let bundledFallbackSource = OperationalDataDocumentSource(
+        document: "FO/CP/CRS Nº140 REV51 29JUN26",
+        revision: "REV51",
+        date: "2026-06-29"
+    )
 
     private init() {
-        loadHotels()
+        loadInitialHotels()
     }
 
     func hotel(for stationIATA: String) -> Hotel? {
         hotels.first { $0.iata == stationIATA }
     }
 
-    private func loadHotels() {
-        guard let url = Bundle.main.url(forResource: "wai_hotel_map_rev51", withExtension: "json") else {
-            print("Hotel JSON file not found")
+    func refreshRemoteData() async {
+        guard let dataset = await RemoteJSONLoader.refreshRemote(
+            documentType: HotelDocument.self,
+            remoteURL: RemoteDataConfiguration.hotelMapURL,
+            cacheFileName: Self.cacheFileName
+        ) else {
             return
         }
 
-        do {
-            let data = try Data(contentsOf: url)
-            let decoded = try JSONDecoder().decode(HotelDocument.self, from: data)
-            document = decoded
-            hotels = decoded.hotels
-            print("Loaded \(decoded.hotels.count) hotels")
-        } catch {
-            print("Failed to load hotel data: \(error)")
+        apply(dataset)
+    }
+
+    private func loadInitialHotels() {
+        guard let dataset = RemoteJSONLoader.loadCachedOrBundled(
+            documentType: HotelDocument.self,
+            cacheFileName: Self.cacheFileName,
+            bundledResourceName: Self.bundledResourceName,
+            bundledFallbackSource: Self.bundledFallbackSource
+        ) else {
+            print("No valid hotel data available")
+            return
         }
+
+        apply(dataset)
+    }
+
+    private func apply(_ dataset: RemoteJSONDataset<HotelDocument>) {
+        document = dataset.document
+        hotels = dataset.document.hotels
+        sourceInfo = dataset.sourceInfo
+        print("Loaded \(dataset.document.hotels.count) hotels from \(dataset.sourceInfo.sourceLabel)")
     }
 }

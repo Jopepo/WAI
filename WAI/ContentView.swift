@@ -2,7 +2,9 @@ import SwiftUI
 import UIKit
 
 struct ContentView: View {
-    let stations = DataService.loadStations()
+    @StateObject private var dataService = DataService.shared
+    @StateObject private var hotelDataService = HotelDataService.shared
+
     let defaultAlternativeTag = "__DEFAULT__"
     let hours = Array(0...23)
     let minutes = Array(stride(from: 0, through: 55, by: 5))
@@ -30,6 +32,10 @@ struct ContentView: View {
     @State private var isReadyToCalculate = false
     @State private var selectedHotel: Hotel?
     @StateObject private var historyStore = CalculationHistoryStore()
+
+    var stations: [Station] {
+        dataService.stations
+    }
 
     var timeInputReference: TimeInputReference {
         TimeInputReference(rawValue: timeInputReferenceRawValue) ?? .utc
@@ -139,6 +145,10 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showingSettings) {
             SettingsView(timeInputReferenceRawValue: $timeInputReferenceRawValue)
+        }
+        .task {
+            await dataService.refreshRemoteData()
+            await hotelDataService.refreshRemoteData()
         }
         .onChange(of: showingSettings) {
             if !showingSettings {
@@ -772,7 +782,7 @@ struct ContentView: View {
     }
 
     func hotel(for station: Station) -> Hotel? {
-        HotelDataService.shared.hotel(for: station.iata.uppercased())
+        hotelDataService.hotel(for: station.iata.uppercased())
     }
 
 

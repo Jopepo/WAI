@@ -10,6 +10,9 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var timeInputReferenceRawValue: String
+    @StateObject private var dataService = DataService.shared
+    @StateObject private var hotelDataService = HotelDataService.shared
+    @State private var isRefreshingData = false
 
     private var timeInputReference: Binding<TimeInputReference> {
         Binding(
@@ -81,49 +84,70 @@ struct SettingsView: View {
 
     private var documentsSection: some View {
         settingsCard {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Documents")
-                    .font(.headline)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("Documents")
+                        .font(.headline)
+
+                    Spacer()
+
+                    Button {
+                        refreshOperationalData()
+                    } label: {
+                        if isRefreshingData {
+                            ProgressView()
+                        } else {
+                            Label("Refresh", systemImage: "arrow.clockwise")
+                        }
+                    }
+                    .font(.subheadline)
+                    .disabled(isRefreshingData)
+                }
 
                 documentRow(
                     title: "Transport Times",
-                    document: "FO/CP/CRS Nº141",
-                    revision: "REV72",
-                    date: "06 Jul 2026"
+                    sourceInfo: dataService.sourceInfo
                 )
 
                 Divider()
 
                 documentRow(
                     title: "Hotel Map",
-                    document: "FO/CP/CRS Nº140",
-                    revision: "REV51",
-                    date: "29 Jun 2026"
+                    sourceInfo: hotelDataService.sourceInfo
                 )
             }
         }
     }
 
-    private func documentRow(title: String, document: String, revision: String, date: String) -> some View {
-        HStack {
+    private func documentRow(title: String, sourceInfo: OperationalDataSourceInfo) -> some View {
+        HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.subheadline)
                     .fontWeight(.semibold)
 
-                Text(document)
+                Text(sourceInfo.document)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+
+                Text(sourceInfo.sourceLabel)
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(.gray.opacity(0.12))
+                    .clipShape(Capsule())
             }
 
             Spacer()
 
             VStack(alignment: .trailing, spacing: 4) {
-                Text(revision)
+                Text(sourceInfo.revision)
                     .font(.subheadline)
                     .fontWeight(.bold)
 
-                Text(date)
+                Text(formattedDocumentDate(sourceInfo.date))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -177,6 +201,31 @@ struct SettingsView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(.gray.opacity(0.08))
             .clipShape(RoundedRectangle(cornerRadius: 18))
+    }
+
+    private func refreshOperationalData() {
+        isRefreshingData = true
+
+        Task {
+            await dataService.refreshRemoteData()
+            await hotelDataService.refreshRemoteData()
+            isRefreshingData = false
+        }
+    }
+
+    private func formattedDocumentDate(_ rawDate: String) -> String {
+        let inputFormatter = DateFormatter()
+        inputFormatter.dateFormat = "yyyy-MM-dd"
+        inputFormatter.locale = Locale(identifier: "en_US_POSIX")
+
+        guard let date = inputFormatter.date(from: rawDate) else {
+            return rawDate
+        }
+
+        let outputFormatter = DateFormatter()
+        outputFormatter.dateStyle = .medium
+        outputFormatter.timeStyle = .none
+        return outputFormatter.string(from: date)
     }
 
     private var feedbackMailtoURL: URL {
