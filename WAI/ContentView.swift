@@ -11,6 +11,9 @@ struct ContentView: View {
     @State private var selectedHour = 6
     @State private var selectedMinute = 0
     @State private var etdDate = Date()
+    @State private var draftHour = 6
+    @State private var draftMinute = 0
+    @State private var draftETDDate = Date()
     @State private var roomNumber = ""
     @AppStorage("wai.timeInputReference") private var timeInputReferenceRawValue = TimeInputReference.utc.rawValue
     @State private var showingTimePicker = false
@@ -128,6 +131,12 @@ struct ContentView: View {
                 .padding()
             }
         }
+        .sheet(isPresented: $showingTimePicker) {
+            timePickerSheet
+        }
+        .sheet(isPresented: $showingDatePicker) {
+            datePickerSheet
+        }
         .sheet(isPresented: $showingSettings) {
             SettingsView(timeInputReferenceRawValue: $timeInputReferenceRawValue)
         }
@@ -177,9 +186,11 @@ struct ContentView: View {
                 .font(.headline)
 
             Button {
-                showingDatePicker = false
-                showingTimePicker.toggle()
+                draftHour = selectedHour
+                draftMinute = selectedMinute
+                showingFlightDetails = false
                 isReadyToCalculate = false
+                showingTimePicker = true
             } label: {
                 Text("\(formattedTime) · \(timeInputReferenceDisplayLabel)")
                     .font(.title2)
@@ -190,9 +201,10 @@ struct ContentView: View {
             }
 
             Button {
-                showingTimePicker = false
-                showingDatePicker.toggle()
+                draftETDDate = etdDate
+                showingFlightDetails = false
                 isReadyToCalculate = false
+                showingDatePicker = true
             } label: {
                 Text(formattedETDDate)
                     .font(.headline)
@@ -201,75 +213,101 @@ struct ContentView: View {
                     .background(.gray.opacity(0.12))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             }
-
-            if showingDatePicker {
-                VStack(spacing: 10) {
-                    DatePicker(
-                        "",
-                        selection: $etdDate,
-                        displayedComponents: .date
-                    )
-                    .labelsHidden()
-                    .datePickerStyle(.graphical)
-                    .onChange(of: etdDate) {
-                        isReadyToCalculate = false
-                        showingFlightDetails = false
-                        didConfirmDate = false
-                    }
-
-                    Button("Confirm") {
-                        showingDatePicker = false
-                        didConfirmDate = true
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-            }
-
-            if showingTimePicker {
-                VStack {
-                    HStack(spacing: 0) {
-                        Picker("Hour", selection: $selectedHour) {
-                            ForEach(hours, id: \.self) { hour in
-                                Text(String(format: "%02d", hour)).tag(hour)
-                            }
-                        }
-                        .pickerStyle(.wheel)
-                        .frame(width: 80)
-                        .onChange(of: selectedHour) {
-                            isReadyToCalculate = false
-                            showingFlightDetails = false
-                            didConfirmTime = false
-                        }
-
-                        Text(":")
-                            .font(.title2)
-                            .bold()
-
-                        Picker("Minute", selection: $selectedMinute) {
-                            ForEach(minutes, id: \.self) { minute in
-                                Text(String(format: "%02d", minute)).tag(minute)
-                            }
-                        }
-                        .pickerStyle(.wheel)
-                        .frame(width: 80)
-                        .onChange(of: selectedMinute) {
-                            isReadyToCalculate = false
-                            showingFlightDetails = false
-                            didConfirmTime = false
-                        }
-                    }
-                    .frame(height: 120)
-
-                    Button("Confirm") {
-                        showingTimePicker = false
-                        didConfirmTime = true
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-            }
         }
         .padding(.horizontal)
         .frame(maxWidth: .infinity)
+    }
+
+    var timePickerSheet: some View {
+        NavigationStack {
+            VStack {
+                Spacer(minLength: 20)
+
+                HStack(spacing: 0) {
+                    Picker("Hour", selection: $draftHour) {
+                        ForEach(hours, id: \.self) { hour in
+                            Text(String(format: "%02d", hour)).tag(hour)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                    .frame(width: 90)
+
+                    Text(":")
+                        .font(.title2)
+                        .bold()
+
+                    Picker("Minute", selection: $draftMinute) {
+                        ForEach(minutes, id: \.self) { minute in
+                            Text(String(format: "%02d", minute)).tag(minute)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                    .frame(width: 90)
+                }
+                .frame(height: 180)
+
+                Spacer(minLength: 20)
+            }
+            .navigationTitle("Select ETD Time")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") {
+                        showingTimePicker = false
+                    }
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") {
+                        selectedHour = draftHour
+                        selectedMinute = draftMinute
+                        showingFlightDetails = false
+                        isReadyToCalculate = false
+                        didConfirmTime = true
+                        showingTimePicker = false
+                    }
+                    .fontWeight(.semibold)
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+
+    var datePickerSheet: some View {
+        NavigationStack {
+            VStack {
+                DatePicker(
+                    "ETD Date",
+                    selection: $draftETDDate,
+                    displayedComponents: .date
+                )
+                .datePickerStyle(.graphical)
+                .padding()
+
+                Spacer(minLength: 0)
+            }
+            .navigationTitle("Select ETD Date")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") {
+                        showingDatePicker = false
+                    }
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") {
+                        etdDate = draftETDDate
+                        showingFlightDetails = false
+                        isReadyToCalculate = false
+                        didConfirmDate = true
+                        showingDatePicker = false
+                    }
+                    .fontWeight(.semibold)
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
     }
 
     var calculateButton: some View {
@@ -793,6 +831,9 @@ struct ContentView: View {
         selectedHour = 6
         selectedMinute = 0
         etdDate = Date()
+        draftHour = 6
+        draftMinute = 0
+        draftETDDate = etdDate
         roomNumber = ""
         showingTimePicker = false
         showingDatePicker = false
