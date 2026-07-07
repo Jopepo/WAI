@@ -4,7 +4,16 @@
     "revision": "v2.2",
     "date": "2026-07-07"
   },
+  "maxVisibleItems": 10,
   "items": [
+    {
+      "id": "wai-v22-hotel-stay-history",
+      "title": "WAI 2.2",
+      "detail": "WAI now helps beyond the wake-up calculation. You can check hotel information directly without simulating a pick-up, save your room number during a stay, and keep hotel stay history independently from saved calculations. This means you can delete a saved calculation while still keeping the hotel stay record, useful when you need to remember which room you stayed in later for lost items or follow-up needs.",
+      "priority": "high",
+      "category": "app",
+      "documentRevision": "v2.2"
+    },
     {
       "id": "rev72-ath-update",
       "title": "ATH transport time updated",
