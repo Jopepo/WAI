@@ -25,16 +25,18 @@ final class WhatsNewDataService: ObservableObject {
         loadInitialItems()
     }
 
-    func refreshRemoteData() async {
+    @discardableResult
+    func refreshRemoteData() async -> Bool {
         guard let dataset = await RemoteJSONLoader.refreshRemote(
             documentType: WhatsNewDocument.self,
             remoteURL: RemoteDataConfiguration.whatsNewURL,
             cacheFileName: Self.cacheFileName
         ) else {
-            return
+            return false
         }
 
         apply(dataset)
+        return true
     }
 
     private func loadInitialItems() {

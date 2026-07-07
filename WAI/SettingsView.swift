@@ -12,7 +12,10 @@ struct SettingsView: View {
     @Binding var timeInputReferenceRawValue: String
     @StateObject private var dataService = DataService.shared
     @StateObject private var hotelDataService = HotelDataService.shared
+    @StateObject private var whatsNewDataService = WhatsNewDataService.shared
     @State private var isRefreshingData = false
+    @State private var refreshStatusMessage: String?
+    @State private var lastRefreshCheck: Date?
 
     private var timeInputReference: Binding<TimeInputReference> {
         Binding(
@@ -102,6 +105,12 @@ struct SettingsView: View {
                     }
                     .font(.subheadline)
                     .disabled(isRefreshingData)
+                }
+
+                if let refreshStatusMessage {
+                    Text(refreshStatusMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 documentRow(
@@ -205,12 +214,46 @@ struct SettingsView: View {
 
     private func refreshOperationalData() {
         isRefreshingData = true
+        refreshStatusMessage = "Checking for data updates..."
 
         Task {
-            await dataService.refreshRemoteData()
-            await hotelDataService.refreshRemoteData()
+            let transportUpdated = await dataService.refreshRemoteData()
+            let hotelUpdated = await hotelDataService.refreshRemoteData()
+            let whatsNewUpdated = await whatsNewDataService.refreshRemoteData()
+            lastRefreshCheck = Date()
+            refreshStatusMessage = refreshSummary(
+                transportUpdated: transportUpdated,
+                hotelUpdated: hotelUpdated,
+                whatsNewUpdated: whatsNewUpdated
+            )
             isRefreshingData = false
         }
+    }
+
+    private func refreshSummary(
+        transportUpdated: Bool,
+        hotelUpdated: Bool,
+        whatsNewUpdated: Bool
+    ) -> String {
+        let updatedCount = [transportUpdated, hotelUpdated, whatsNewUpdated].filter { $0 }.count
+        let checkedAt = lastRefreshCheck.map { formattedRefreshTime($0) } ?? "now"
+
+        if updatedCount == 3 {
+            return "Updated all data sources · Checked \(checkedAt)"
+        }
+
+        if updatedCount > 0 {
+            return "Updated \(updatedCount) of 3 data sources · Checked \(checkedAt)"
+        }
+
+        return "No remote updates applied; using current cached or bundled data · Checked \(checkedAt)"
+    }
+
+    private func formattedRefreshTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        formatter.dateStyle = .none
+        return formatter.string(from: date)
     }
 
     private func formattedDocumentDate(_ rawDate: String) -> String {

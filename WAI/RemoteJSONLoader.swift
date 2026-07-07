@@ -20,6 +20,13 @@ struct OperationalDataSourceInfo {
 
 protocol OperationalDataDocument {
     var sourceInfo: OperationalDataDocumentSource? { get }
+    var isValid: Bool { get }
+}
+
+extension OperationalDataDocument {
+    var isValid: Bool {
+        true
+    }
 }
 
 struct OperationalDataDocumentSource: Codable {
@@ -73,6 +80,12 @@ enum RemoteJSONLoader {
             }
 
             let document = try JSONDecoder().decode(Document.self, from: data)
+
+            guard document.isValid else {
+                print("Remote JSON validation failed for \(remoteURL)")
+                return nil
+            }
+
             try data.write(to: cacheURL(fileName: cacheFileName), options: [.atomic])
 
             return RemoteJSONDataset(
@@ -96,6 +109,10 @@ enum RemoteJSONLoader {
         do {
             let data = try Data(contentsOf: cacheURL(fileName: cacheFileName))
             let document = try JSONDecoder().decode(Document.self, from: data)
+
+            guard document.isValid else {
+                return nil
+            }
 
             return RemoteJSONDataset(
                 document: document,
@@ -123,6 +140,11 @@ enum RemoteJSONLoader {
         do {
             let data = try Data(contentsOf: url)
             let document = try JSONDecoder().decode(Document.self, from: data)
+
+            guard document.isValid else {
+                print("Bundled JSON validation failed for \(resourceName).json")
+                return nil
+            }
 
             return RemoteJSONDataset(
                 document: document,

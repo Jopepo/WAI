@@ -7,6 +7,26 @@ struct StationData: Codable, OperationalDataDocument {
     var sourceInfo: OperationalDataDocumentSource? {
         source
     }
+
+    var isValid: Bool {
+        guard !stations.isEmpty else {
+            return false
+        }
+
+        let iataCodes = stations.map(\.iata)
+        guard Set(iataCodes).count == iataCodes.count else {
+            return false
+        }
+
+        return stations.allSatisfy { station in
+            station.iata.count == 3
+            && !station.city.isEmpty
+            && TimeZone(identifier: station.timeZone) != nil
+            && station.defaultRule.isValid
+            && station.alternatives.allSatisfy { $0.transportMinutes >= 0 && !$0.label.isEmpty }
+            && (station.holidays ?? []).allSatisfy { $0.isValid }
+        }
+    }
 }
 
 @MainActor
@@ -38,16 +58,18 @@ final class DataService: ObservableObject {
         loadInitialDataset()?.document.stations ?? []
     }
 
-    func refreshRemoteData() async {
+    @discardableResult
+    func refreshRemoteData() async -> Bool {
         guard let dataset = await RemoteJSONLoader.refreshRemote(
             documentType: StationData.self,
             remoteURL: RemoteDataConfiguration.transportRulesURL,
             cacheFileName: Self.cacheFileName
         ) else {
-            return
+            return false
         }
 
         apply(dataset)
+        return true
     }
 
     private func loadInitialStations() {
