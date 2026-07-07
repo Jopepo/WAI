@@ -4,6 +4,7 @@ import UIKit
 struct ContentView: View {
     @StateObject private var dataService = DataService.shared
     @StateObject private var hotelDataService = HotelDataService.shared
+    @StateObject private var whatsNewDataService = WhatsNewDataService.shared
 
     let defaultAlternativeTag = "__DEFAULT__"
     let hours = Array(0...23)
@@ -149,6 +150,7 @@ struct ContentView: View {
         .task {
             await dataService.refreshRemoteData()
             await hotelDataService.refreshRemoteData()
+            await whatsNewDataService.refreshRemoteData()
         }
         .onChange(of: showingSettings) {
             if !showingSettings {

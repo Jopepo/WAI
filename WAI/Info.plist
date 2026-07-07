@@ -3,10 +3,10 @@
 <plist version="1.0">
 <dict>
     <key>WAIRemoteTransportRulesURL</key>
-    <string>https://raw.githubusercontent.com/Jopepo/WAI/main/WAI/wai_transport_rules_current.json</string>
+    <string>https://raw.githubusercontent.com/Jopepo/WAI/wai-2.2-remote-data/WAI/wai_transport_rules_current.json</string>
     <key>WAIRemoteHotelMapURL</key>
-    <string>https://raw.githubusercontent.com/Jopepo/WAI/main/WAI/wai_hotel_map_current.json</string>
+    <string>https://raw.githubusercontent.com/Jopepo/WAI/wai-2.2-remote-data/WAI/wai_hotel_map_current.json</string>
     <key>WAIRemoteWhatsNewURL</key>
-    <string>https://raw.githubusercontent.com/Jopepo/WAI/main/WAI/wai_whats_new_current.json</string>
+    <string>https://raw.githubusercontent.com/Jopepo/WAI/wai-2.2-remote-data/WAI/wai_whats_new_current.json</string>
 </dict>
 </plist>
