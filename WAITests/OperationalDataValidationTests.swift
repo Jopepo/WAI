@@ -84,6 +84,7 @@ struct OperationalDataValidationTests {
                 revision: "TEST",
                 date: "2026-07-07"
             ),
+            maxVisibleItems: nil,
             items: []
         )
 

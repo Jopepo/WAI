@@ -23,20 +23,17 @@ struct DataStatusView: View {
                 Section("Data sources") {
                     dataSourceRow(
                         title: "Transport Times",
-                        sourceInfo: dataService.sourceInfo,
-                        remoteURL: RemoteDataConfiguration.transportRulesURL
+                        sourceInfo: dataService.sourceInfo
                     )
 
                     dataSourceRow(
                         title: "Hotel Map",
-                        sourceInfo: hotelDataService.sourceInfo,
-                        remoteURL: RemoteDataConfiguration.hotelMapURL
+                        sourceInfo: hotelDataService.sourceInfo
                     )
 
                     dataSourceRow(
                         title: "What's New",
-                        sourceInfo: whatsNewDataService.sourceInfo,
-                        remoteURL: RemoteDataConfiguration.whatsNewURL
+                        sourceInfo: whatsNewDataService.sourceInfo
                     )
                 }
             }
@@ -54,8 +51,7 @@ struct DataStatusView: View {
 
     private func dataSourceRow(
         title: String,
-        sourceInfo: OperationalDataSourceInfo,
-        remoteURL: URL?
+        sourceInfo: OperationalDataSourceInfo
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
@@ -89,13 +85,6 @@ struct DataStatusView: View {
                     .foregroundStyle(.secondary)
             }
 
-            if let remoteURL {
-                Text(remoteURL.absoluteString)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .textSelection(.enabled)
-            }
         }
         .padding(.vertical, 4)
     }
