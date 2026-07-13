@@ -36,18 +36,18 @@ final class DataService: ObservableObject {
     @Published private(set) var stations: [Station] = []
     @Published private(set) var sourceInfo = OperationalDataSourceInfo(
         kind: .bundled,
-        document: "FO/CP/CRS Nº141 REV72 06JUL26",
-        revision: "REV72",
-        date: "2026-07-06",
+        document: "FO/CP/CRS Nº141 REV73 13JUL26",
+        revision: "REV73",
+        date: "2026-07-13",
         loadedAt: nil
     )
 
-    private static let bundledResourceName = "wai_transport_rules_rev72"
+    private static let bundledResourceName = "wai_transport_rules_rev73"
     private static let cacheFileName = "wai_transport_rules_current.json"
     private static let bundledFallbackSource = OperationalDataDocumentSource(
-        document: "FO/CP/CRS Nº141 REV72 06JUL26",
-        revision: "REV72",
-        date: "2026-07-06"
+        document: "FO/CP/CRS Nº141 REV73 13JUL26",
+        revision: "REV73",
+        date: "2026-07-13"
     )
 
     private init() {

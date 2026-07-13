@@ -10,6 +10,16 @@ struct OperationalDataValidationTests {
         #expect(document.isValid)
     }
 
+    @Test func rev73UsesUpdatedCWBTransportTime() throws {
+        let data = try bundledData(named: "wai_transport_rules_current")
+        let document = try JSONDecoder().decode(StationData.self, from: data)
+        let cwb = try #require(document.stations.first { $0.iata == "CWB" })
+
+        #expect(document.source?.revision == "REV73")
+        #expect(cwb.defaultRule.type == "fixed")
+        #expect(cwb.defaultRule.transportMinutes == 50)
+    }
+
     @Test func bundledCurrentHotelDataIsValid() throws {
         let data = try bundledData(named: "wai_hotel_map_current")
         let document = try JSONDecoder().decode(HotelDocument.self, from: data)

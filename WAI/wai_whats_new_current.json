@@ -7,6 +7,22 @@
   "maxVisibleItems": 10,
   "items": [
     {
+      "id": "rev73-cwb-update",
+      "title": "CWB transport time updated",
+      "detail": "Curitiba transport time updated from 30 to 50 minutes.",
+      "priority": "medium",
+      "category": "transport",
+      "documentRevision": "REV73"
+    },
+    {
+      "id": "rev73-transport-document",
+      "title": "Transport Times updated",
+      "detail": "Transport rules updated to FO/CP/CRS Nº141 REV73 · 13 Jul 2026.",
+      "priority": "low",
+      "category": "document",
+      "documentRevision": "REV73"
+    },
+    {
       "id": "wai-v22-hotel-stay-history",
       "title": "WAI 2.2",
       "detail": "WAI now helps beyond the wake-up calculation. You can check hotel information directly without simulating a pick-up, save your room number during a stay, and keep hotel stay history independently from saved calculations. This means you can delete a saved calculation while still keeping the hotel stay record, useful when you need to remember which room you stayed in later for lost items or follow-up needs.",
