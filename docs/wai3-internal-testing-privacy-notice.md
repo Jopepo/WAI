@@ -30,8 +30,9 @@ advertising.
 
 Calendar access is optional and requires permission. Calendar events, imported
 rosters, duties, flight legs, room numbers, calculation history, hotel stays,
-wake-up times, and pickup times are processed locally and are not uploaded to
-the WAI service.
+wake-up times, pickup times, home routine settings, briefing edits, and
+commander passwords are processed locally and are not uploaded to the WAI
+service.
 
 Protected local records are bound to the signed-in account and stored using the
 iOS Keychain or encrypted files. Sign-out clears local authorization and

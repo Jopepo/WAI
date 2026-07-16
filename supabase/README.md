@@ -85,3 +85,10 @@ The function requires these server-side environment values:
 Supabase function secrets. They must never be placed in `Info.plist`, an Xcode
 configuration, GitHub, or the app bundle. JWT verification must remain enabled
 for this function when it is eventually deployed.
+
+## Internal testing privacy notice
+
+`functions/wai3-privacy-notice` serves the temporary WAI 3 staging privacy
+notice without authentication. It does not read environment values, databases,
+storage, request bodies, or user data. This staging-only notice must be replaced
+by the final reviewed privacy policy before a public release.
