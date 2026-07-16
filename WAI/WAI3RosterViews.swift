@@ -96,6 +96,7 @@ struct WAI3CrewWorkspaceView: View {
                 duty: selection.duty,
                 stay: selection.stay,
                 analysis: selection.analysis,
+                stations: dataService.stations,
                 hotel: selection.stay.flatMap {
                     hotelDataService.hotel(for: $0.stationIATA)
                 },
@@ -107,7 +108,8 @@ struct WAI3CrewWorkspaceView: View {
         .sheet(isPresented: $showingHomeRoutineSettings) {
             WAI3HomeRoutineSettingsView(
                 stations: dataService.stations,
-                controller: personalizationController
+                controller: personalizationController,
+                suggestedBaseIATA: nil
             )
         }
         .alert(
@@ -244,6 +246,12 @@ struct WAI3CrewWorkspaceView: View {
                                                     personalizationController
                                                         .homeRoutine
                                             ),
+                                        showsHomeRoutineSetup:
+                                            personalizationController
+                                                .homeRoutine == nil
+                                            && personalizationController.state
+                                                != .failedSecureStorage
+                                            && duty.kind == .flight,
                                         roomNumber: staysByDuty[duty.id].flatMap {
                                             roomNumberController.roomNumber(for: $0.id)
                                         }
@@ -892,6 +900,7 @@ private struct WAI3DutyRow: View {
     let stay: RosterStay?
     let analysis: RosterDutyAnalysis?
     let homeRoutine: RosterHomeRoutine?
+    let showsHomeRoutineSetup: Bool
     let roomNumber: String?
 
     var body: some View {
@@ -917,6 +926,11 @@ private struct WAI3DutyRow: View {
             if let homeRoutine {
                 Divider()
                 homeRoutineSummary(homeRoutine)
+            } else if showsHomeRoutineSetup {
+                Divider()
+                Label("Set wake-up and pick-up", systemImage: "house")
+                    .font(.caption)
+                    .foregroundStyle(.blue)
             }
 
             if let stay {
@@ -958,7 +972,7 @@ private struct WAI3DutyRow: View {
                             routine: routine
                         )
                         homeTimingLabel(
-                            "Leave home",
+                            "Pick-up / leave home",
                             date: routine.leaveHome,
                             systemImage: "house",
                             routine: routine
@@ -982,7 +996,7 @@ private struct WAI3DutyRow: View {
                 routine: routine
             )
             homeTimingLabel(
-                "Leave home",
+                "Pick-up / leave home",
                 date: routine.leaveHome,
                 systemImage: "house",
                 routine: routine
@@ -1252,6 +1266,7 @@ private struct WAI3DutyDetailView: View {
     let duty: RosterDuty
     let stay: RosterStay?
     let analysis: RosterDutyAnalysis?
+    let stations: [Station]
     let hotel: Hotel?
     @ObservedObject var roomNumberController: WAIRoomNumberController
     @ObservedObject var personalizationController:
@@ -1259,6 +1274,7 @@ private struct WAI3DutyDetailView: View {
     @ObservedObject var hotelStayStore: HotelStayStore
 
     @State private var selectedHotel: Hotel?
+    @State private var showingHomeRoutineSettings = false
 
     var body: some View {
         NavigationStack {
@@ -1307,6 +1323,10 @@ private struct WAI3DutyDetailView: View {
                     }
                 }
 
+                homeDepartureSection
+
+                briefingSection
+
                 if let analysis, !analysis.flightPeriods.isEmpty {
                     Section("Flight periods") {
                         ForEach(analysis.flightPeriods) { period in
@@ -1349,42 +1369,6 @@ private struct WAI3DutyDetailView: View {
                             }
                             .padding(.vertical, 4)
                         }
-                    }
-                }
-
-                if let homeRoutine {
-                    Section("Home departure") {
-                        LabeledContent(
-                            "Wake-up",
-                            value: WAI3RosterFormatting.absoluteDateTime(
-                                homeRoutine.wakeup,
-                                stationIATA: homeRoutine.stationIATA,
-                                timeZoneIdentifier:
-                                    homeRoutine.timeZoneIdentifier
-                            )
-                        )
-                        LabeledContent(
-                            "Leave home",
-                            value: WAI3RosterFormatting.absoluteDateTime(
-                                homeRoutine.leaveHome,
-                                stationIATA: homeRoutine.stationIATA,
-                                timeZoneIdentifier:
-                                    homeRoutine.timeZoneIdentifier
-                            )
-                        )
-                        LabeledContent(
-                            "Report",
-                            value: WAI3RosterFormatting.absoluteDateTime(
-                                homeRoutine.report,
-                                stationIATA: homeRoutine.stationIATA,
-                                timeZoneIdentifier:
-                                    homeRoutine.timeZoneIdentifier
-                            )
-                        )
-                        LabeledContent(
-                            "Travel",
-                            value: "\(homeRoutine.travelMinutes) min"
-                        )
                     }
                 }
 
@@ -1514,48 +1498,6 @@ private struct WAI3DutyDetailView: View {
                         if let aircraftName = leg.aircraftName {
                             LabeledContent("Name", value: aircraftName)
                         }
-                        let briefing = personalizationController.briefing(
-                            for: leg.id
-                        )
-                        LabeledContent(
-                            "Pax",
-                            value: briefing?.passengerLoad
-                                ?? leg.passengerLoad
-                                ?? "Not set"
-                        )
-                        .accessibilityIdentifier(
-                            "wai3.briefing.paxValue.\(leg.id)"
-                        )
-                        LabeledContent(
-                            "Flight time",
-                            value: effectiveFlightTime(
-                                for: leg,
-                                briefing: briefing
-                            )
-                        )
-                        LabeledContent(
-                            "Commander password",
-                            value: briefing?.commanderPassword == nil
-                                ? "Not set"
-                                : "Saved"
-                        )
-                        .accessibilityIdentifier(
-                            "wai3.briefing.passwordStatus.\(leg.id)"
-                        )
-                        NavigationLink {
-                            WAI3LegBriefingEditView(
-                                leg: leg,
-                                rosterBlockMinutes: analysis?
-                                    .analysis(for: leg.id)?
-                                    .blockMinutes,
-                                controller: personalizationController
-                            )
-                        } label: {
-                            Label("Edit briefing", systemImage: "pencil")
-                        }
-                        .accessibilityIdentifier(
-                            "wai3.briefing.edit.\(leg.id)"
-                        )
                         if let radiation = leg.cosmicRadiation {
                             LabeledContent(
                                 "Cosmic radiation",
@@ -1598,6 +1540,145 @@ private struct WAI3DutyDetailView: View {
                 hotel: hotel,
                 hotelStayStore: hotelStayStore
             )
+        }
+        .sheet(isPresented: $showingHomeRoutineSettings) {
+            WAI3HomeRoutineSettingsView(
+                stations: stations,
+                controller: personalizationController,
+                suggestedBaseIATA: duty.legs.first?.originIATA
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var homeDepartureSection: some View {
+        if let homeRoutine {
+            Section("Home departure") {
+                LabeledContent(
+                    "Wake-up",
+                    value: WAI3RosterFormatting.absoluteDateTime(
+                        homeRoutine.wakeup,
+                        stationIATA: homeRoutine.stationIATA,
+                        timeZoneIdentifier: homeRoutine.timeZoneIdentifier
+                    )
+                )
+                LabeledContent(
+                    "Pick-up / leave home",
+                    value: WAI3RosterFormatting.absoluteDateTime(
+                        homeRoutine.leaveHome,
+                        stationIATA: homeRoutine.stationIATA,
+                        timeZoneIdentifier: homeRoutine.timeZoneIdentifier
+                    )
+                )
+                LabeledContent(
+                    "Report",
+                    value: WAI3RosterFormatting.absoluteDateTime(
+                        homeRoutine.report,
+                        stationIATA: homeRoutine.stationIATA,
+                        timeZoneIdentifier: homeRoutine.timeZoneIdentifier
+                    )
+                )
+                LabeledContent(
+                    "Travel",
+                    value: "\(homeRoutine.travelMinutes) min"
+                )
+                Button {
+                    showingHomeRoutineSettings = true
+                } label: {
+                    Label("Edit home routine", systemImage: "pencil")
+                }
+            }
+        } else if personalizationController.state == .failedSecureStorage,
+                  duty.kind == .flight {
+            Section("Home departure") {
+                Label(
+                    "Home routine storage unavailable",
+                    systemImage: "lock.trianglebadge.exclamationmark"
+                )
+                .foregroundStyle(.secondary)
+            }
+        } else if personalizationController.homeRoutine == nil,
+                  duty.kind == .flight,
+                  let originIATA = duty.legs.first?.originIATA {
+            Section("Home departure") {
+                Button {
+                    showingHomeRoutineSettings = true
+                } label: {
+                    Label(
+                        "Set wake-up and pick-up",
+                        systemImage: "house"
+                    )
+                }
+                .accessibilityIdentifier("wai3.homeRoutine.setup")
+
+                Text(
+                    "Confirm your travel time from home for departures from \(originIATA)."
+                )
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var briefingSection: some View {
+        if !duty.legs.isEmpty {
+            Section("Briefing") {
+                ForEach(duty.legs) { leg in
+                    let briefing = personalizationController.briefing(
+                        for: leg.id
+                    )
+                    Text(
+                        "\(leg.flightNumber)  \(leg.originIATA) - \(leg.destinationIATA)"
+                    )
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+
+                    LabeledContent(
+                        "Pax",
+                        value: briefing?.passengerLoad
+                            ?? leg.passengerLoad
+                            ?? "Not set"
+                    )
+                    .accessibilityIdentifier(
+                        "wai3.briefing.paxValue.\(leg.id)"
+                    )
+                    LabeledContent(
+                        "Flight time",
+                        value: effectiveFlightTime(
+                            for: leg,
+                            briefing: briefing
+                        )
+                    )
+                    LabeledContent(
+                        "Commander password",
+                        value: briefing?.commanderPassword == nil
+                            ? "Not set"
+                            : "Saved"
+                    )
+                    .accessibilityIdentifier(
+                        "wai3.briefing.passwordStatus.\(leg.id)"
+                    )
+                    NavigationLink {
+                        WAI3LegBriefingEditView(
+                            leg: leg,
+                            rosterBlockMinutes: analysis?
+                                .analysis(for: leg.id)?
+                                .blockMinutes,
+                            controller: personalizationController
+                        )
+                    } label: {
+                        Label("Edit briefing", systemImage: "pencil")
+                    }
+                    .accessibilityIdentifier(
+                        "wai3.briefing.edit.\(leg.id)"
+                    )
+
+                    if leg.id != duty.legs.last?.id {
+                        Divider()
+                    }
+                }
+            }
         }
     }
 
@@ -1685,6 +1766,7 @@ private struct WAI3HomeRoutineSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     let stations: [Station]
     @ObservedObject var controller: WAIRosterPersonalizationController
+    let suggestedBaseIATA: String?
 
     @State private var baseIATA = ""
     @State private var travelMinutes = 45
@@ -1764,12 +1846,18 @@ private struct WAI3HomeRoutineSettingsView: View {
     }
 
     private func load() {
-        guard let settings = controller.homeRoutine else {
+        if let settings = controller.homeRoutine {
+            baseIATA = settings.baseIATA
+            travelMinutes = settings.travelMinutes
+            wakeupBufferMinutes = settings.wakeupBufferMinutes
             return
         }
-        baseIATA = settings.baseIATA
-        travelMinutes = settings.travelMinutes
-        wakeupBufferMinutes = settings.wakeupBufferMinutes
+
+        guard let suggestedBaseIATA,
+              stations.contains(where: { $0.iata == suggestedBaseIATA }) else {
+            return
+        }
+        baseIATA = suggestedBaseIATA
     }
 
     private func save() {

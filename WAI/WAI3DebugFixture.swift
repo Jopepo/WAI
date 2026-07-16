@@ -8,6 +8,8 @@ enum WAI3DebugFixturePresentation {
 
     static let darkAccessibilityLaunchArgument =
         "--wai3-approved-ui-test-fixture-dark-accessibility"
+    static let noHomeRoutineLaunchArgument =
+        "--wai3-approved-ui-test-fixture-no-home-routine"
 }
 
 @MainActor
@@ -21,7 +23,10 @@ final class WAI3DebugFixtureRuntime {
     let hotelDataService: HotelDataService
     let whatsNewDataService: WhatsNewDataService
 
-    init(now: Date = Date(timeIntervalSince1970: 1_784_147_400)) {
+    init(
+        now: Date = Date(timeIntervalSince1970: 1_784_147_400),
+        configuresHomeRoutine: Bool = true
+    ) {
         let ownerUserID = UUID(
             uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE"
         ) ?? UUID()
@@ -58,11 +63,13 @@ final class WAI3DebugFixtureRuntime {
         rosterController.prepare(for: ownerUserID)
         roomNumberController.prepare(for: ownerUserID)
         personalizationController.prepare(for: ownerUserID)
-        _ = personalizationController.setHomeRoutine(
-            baseIATA: "LIS",
-            travelMinutes: 35,
-            wakeupBufferMinutes: 60
-        )
+        if configuresHomeRoutine {
+            _ = personalizationController.setHomeRoutine(
+                baseIATA: "LIS",
+                travelMinutes: 35,
+                wakeupBufferMinutes: 60
+            )
+        }
         calculationHistoryStore.prepare(for: ownerUserID)
         hotelStayStore.prepare(for: ownerUserID)
     }
@@ -214,6 +221,26 @@ final class WAI3DebugFixtureRuntime {
             document: StationData(
                 source: fixtureSource,
                 stations: [
+                    Station(
+                        iata: "LIS",
+                        icao: "LPPT",
+                        city: "Lisbon",
+                        country: "Portugal",
+                        timeZone: "Europe/Lisbon",
+                        standardUtcOffset: "+00:00",
+                        summerUtcOffset: "+01:00",
+                        defaultRule: TransportRule(
+                            type: "fixed",
+                            label: "Test transfer",
+                            transportMinutes: 30,
+                            minTransportMinutes: nil,
+                            maxTransportMinutes: nil,
+                            rules: nil,
+                            conditions: nil
+                        ),
+                        alternatives: [],
+                        holidays: []
+                    ),
                     Station(
                         iata: "CPH",
                         icao: "EKCH",

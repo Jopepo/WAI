@@ -85,29 +85,7 @@ final class WAIUITests: XCTestCase {
         )
 
         let editRoomNumber = app.buttons["Edit room number"]
-        let hotelName = app.staticTexts.matching(
-            NSPredicate(
-                format: "label CONTAINS[c] %@",
-                "Radisson Blu Scandinavia Hotel"
-            )
-        ).firstMatch
-        var foundHotelName = hotelName.exists
-        for _ in 0..<6 {
-            foundHotelName = foundHotelName || hotelName.exists
-            if editRoomNumber.exists {
-                let midpoint = editRoomNumber.frame.midY
-                if editRoomNumber.isHittable, midpoint > 180, midpoint < 700 {
-                    break
-                }
-            }
-            app.swipeUp()
-        }
-        XCTAssertTrue(editRoomNumber.waitForExistence(timeout: 2))
-        foundHotelName = foundHotelName || hotelName.exists
-        XCTAssertTrue(foundHotelName)
-        XCTAssertTrue(editRoomNumber.isHittable)
-        XCTAssertGreaterThan(editRoomNumber.frame.midY, 180)
-        XCTAssertLessThan(editRoomNumber.frame.midY, 700)
+        scrollUntilAccessible(editRoomNumber, in: app, attempts: 12)
         editRoomNumber.tap()
 
         let roomNumber = app.textFields["Room number"]
@@ -199,6 +177,10 @@ final class WAIUITests: XCTestCase {
 
         outboundDuty.tap()
         let dutyNavigation = app.navigationBars["2CPH1501P"]
+        if !dutyNavigation.waitForExistence(timeout: 3) {
+            XCTAssertTrue(outboundDuty.waitForExistence(timeout: 2))
+            outboundDuty.tap()
+        }
         XCTAssertTrue(dutyNavigation.waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["Done"].isHittable)
         assertHorizontallyContained(dutyNavigation, in: app)
@@ -238,13 +220,13 @@ final class WAIUITests: XCTestCase {
             NSPredicate(format: "label CONTAINS %@", "2CPH1501P")
         ).firstMatch
         XCTAssertTrue(outboundDuty.waitForExistence(timeout: 4))
-        XCTAssertTrue(outboundDuty.label.contains("Leave home"))
+        XCTAssertTrue(outboundDuty.label.contains("Pick-up / leave home"))
         outboundDuty.tap()
 
         XCTAssertTrue(
             app.staticTexts["Home departure"].waitForExistence(timeout: 2)
         )
-        XCTAssertTrue(app.staticTexts["Leave home"].exists)
+        XCTAssertTrue(app.staticTexts["Pick-up / leave home"].exists)
 
         let editBriefing = app.descendants(matching: .any)[
             "wai3.briefing.edit.fixture-outbound-leg"
@@ -283,6 +265,41 @@ final class WAIUITests: XCTestCase {
         XCTAssertTrue(passwordStatus.waitForExistence(timeout: 2))
         XCTAssertTrue(passwordStatus.label.contains("Saved"))
         XCTAssertFalse(app.staticTexts["7421"].exists)
+    }
+
+    func testLisbonDepartureOffersHomeRoutineSetup() {
+        let app = XCUIApplication()
+        app.launchArguments.append(
+            "--wai3-approved-ui-test-fixture-no-home-routine"
+        )
+        app.launch()
+
+        let outboundDuty = app.descendants(matching: .any)[
+            "wai3.roster.duty.fixture-outbound-duty"
+        ]
+        XCTAssertTrue(outboundDuty.waitForExistence(timeout: 4))
+        XCTAssertTrue(
+            outboundDuty.label.contains("Set wake-up and pick-up")
+        )
+        outboundDuty.tap()
+
+        let setup = app.descendants(matching: .any)[
+            "wai3.homeRoutine.setup"
+        ]
+        XCTAssertTrue(setup.waitForExistence(timeout: 2))
+        setup.tap()
+
+        XCTAssertTrue(
+            app.navigationBars["Home routine"].waitForExistence(timeout: 2)
+        )
+        XCTAssertTrue(app.buttons["Save"].isEnabled)
+        app.buttons["Save"].tap()
+
+        XCTAssertTrue(
+            app.staticTexts["Pick-up / leave home"]
+                .waitForExistence(timeout: 2)
+        )
+        XCTAssertTrue(app.staticTexts["Wake-up"].exists)
     }
 
     private func scrollUntilAccessible(

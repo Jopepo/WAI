@@ -24,10 +24,16 @@ struct WAIApplicationRoot: View {
         let darkAccessibilityFixture = arguments.contains(
             WAI3DebugFixturePresentation.darkAccessibilityLaunchArgument
         )
+        let noHomeRoutineFixture = arguments.contains(
+            WAI3DebugFixturePresentation.noHomeRoutineLaunchArgument
+        )
         if arguments.contains("--wai3-approved-ui-test-fixture")
-            || darkAccessibilityFixture {
+            || darkAccessibilityFixture
+            || noHomeRoutineFixture {
             mode = .approvedUITestFixture(
-                WAI3DebugFixtureRuntime(),
+                WAI3DebugFixtureRuntime(
+                    configuresHomeRoutine: !noHomeRoutineFixture
+                ),
                 darkAccessibilityFixture ? .darkAccessibility : .standard
             )
             return
