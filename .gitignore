@@ -1,0 +1,16 @@
+.DS_Store
+.build/
+DerivedData/
+__pycache__/
+*.py[cod]
+
+# Supabase local runtime and credentials
+.supabase/
+supabase/.branches/
+supabase/.temp/
+supabase/.env
+supabase/.env.*
+!supabase/.env.example
+
+# Generated operational release artifacts
+build/operational-release/

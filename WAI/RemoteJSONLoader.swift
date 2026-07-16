@@ -1,12 +1,12 @@
 import Foundation
 
-enum OperationalDataSourceKind: String {
+enum OperationalDataSourceKind: String, Equatable, Sendable {
     case bundled = "Bundled"
     case cached = "Cached"
     case remote = "Remote"
 }
 
-struct OperationalDataSourceInfo {
+struct OperationalDataSourceInfo: Equatable, Sendable {
     let kind: OperationalDataSourceKind
     let document: String
     let revision: String
@@ -29,15 +29,28 @@ extension OperationalDataDocument {
     }
 }
 
-struct OperationalDataDocumentSource: Codable {
+struct OperationalDataDocumentSource: Codable, Equatable, Sendable {
     let document: String
     let revision: String
     let date: String
+
+    var isValid: Bool {
+        OperationalDataFormat.isBoundedText(document, maximumBytes: 512)
+        && OperationalDataFormat.isBoundedText(revision, maximumBytes: 128)
+        && TransportTimeFormat.isValidISODate(date)
+    }
 }
 
 struct RemoteJSONDataset<Document: Decodable> {
     let document: Document
     let sourceInfo: OperationalDataSourceInfo
+}
+
+enum WAILegacyOperationalCacheFiles {
+    static let transportRules = "wai_transport_rules_current.json"
+    static let hotelMap = "wai_hotel_map_current.json"
+    static let whatsNew = "wai_whats_new_current.json"
+    static let all = [transportRules, hotelMap, whatsNew]
 }
 
 enum RemoteJSONLoader {

@@ -4,7 +4,7 @@ import SwiftUI
 struct WAIApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            WAIApplicationRoot()
         }
     }
 }

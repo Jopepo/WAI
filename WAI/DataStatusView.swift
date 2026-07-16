@@ -1,12 +1,30 @@
 import SwiftUI
 
+@MainActor
 struct DataStatusView: View {
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var dataService = DataService.shared
-    @StateObject private var hotelDataService = HotelDataService.shared
-    @StateObject private var whatsNewDataService = WhatsNewDataService.shared
+    @StateObject private var dataService: DataService
+    @StateObject private var hotelDataService: HotelDataService
+    @StateObject private var whatsNewDataService: WhatsNewDataService
 
     let lastRefreshCheck: Date?
+    let showsTechnicalSourceLabels: Bool
+
+    init(
+        lastRefreshCheck: Date?,
+        dataService: DataService? = nil,
+        hotelDataService: HotelDataService? = nil,
+        whatsNewDataService: WhatsNewDataService? = nil,
+        showsTechnicalSourceLabels: Bool = true
+    ) {
+        self.lastRefreshCheck = lastRefreshCheck
+        self.showsTechnicalSourceLabels = showsTechnicalSourceLabels
+        _dataService = StateObject(wrappedValue: dataService ?? .shared)
+        _hotelDataService = StateObject(wrappedValue: hotelDataService ?? .shared)
+        _whatsNewDataService = StateObject(
+            wrappedValue: whatsNewDataService ?? .shared
+        )
+    }
 
     var body: some View {
         NavigationStack {
@@ -61,7 +79,11 @@ struct DataStatusView: View {
 
                 Spacer()
 
-                Text(sourceInfo.sourceLabel)
+                Text(
+                    showsTechnicalSourceLabels
+                        ? sourceInfo.sourceLabel
+                        : "Verified"
+                )
                     .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundStyle(.secondary)

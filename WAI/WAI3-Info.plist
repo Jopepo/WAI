@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>WAI reads your crew roster from Calendar to build your operational timeline and automatic timings. Calendar data stays on this device.</string>
+	<key>WAI3CompatibilityVersion</key>
+	<string>$(WAI3_COMPATIBILITY_VERSION)</string>
+	<key>WAI3SecureModeEnabled</key>
+	<true/>
+	<key>WAIApprovalEmail</key>
+	<string>$(WAI3_APPROVAL_EMAIL)</string>
+	<key>WAIPrivacyPolicyURL</key>
+	<string>$(WAI3_PRIVACY_POLICY_URL)</string>
+	<key>WAISupabasePublishableKey</key>
+	<string>$(WAI3_SUPABASE_PUBLISHABLE_KEY)</string>
+	<key>WAISupabaseURL</key>
+	<string>$(WAI3_SUPABASE_URL)</string>
+</dict>
+</plist>

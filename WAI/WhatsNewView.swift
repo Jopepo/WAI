@@ -1,11 +1,25 @@
 import SwiftUI
 
+@MainActor
 struct WhatsNewView: View {
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var dataService = WhatsNewDataService.shared
+    @StateObject private var dataService: WhatsNewDataService
+    private let allowsLegacyRemoteRefresh: Bool
+
+    init(
+        dataService: WhatsNewDataService? = nil,
+        allowsLegacyRemoteRefresh: Bool = true
+    ) {
+        _dataService = StateObject(wrappedValue: dataService ?? .shared)
+        self.allowsLegacyRemoteRefresh = allowsLegacyRemoteRefresh
+    }
 
     private var items: [WhatsNewItem] {
-        Array(dataService.items.prefix(dataService.maxVisibleItems))
+        Array(
+            dataService.items.prefix(
+                max(0, min(dataService.maxVisibleItems, dataService.items.count))
+            )
+        )
     }
 
     var body: some View {
@@ -31,7 +45,9 @@ struct WhatsNewView: View {
             }
         }
         .task {
-            await dataService.refreshRemoteData()
+            if allowsLegacyRemoteRefresh {
+                await dataService.refreshRemoteData()
+            }
         }
     }
 

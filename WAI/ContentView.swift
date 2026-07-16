@@ -1,10 +1,14 @@
 import SwiftUI
 import UIKit
 
+@MainActor
 struct ContentView: View {
-    @StateObject private var dataService = DataService.shared
-    @StateObject private var hotelDataService = HotelDataService.shared
-    @StateObject private var whatsNewDataService = WhatsNewDataService.shared
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @StateObject private var dataService: DataService
+    @StateObject private var hotelDataService: HotelDataService
+    @StateObject private var whatsNewDataService: WhatsNewDataService
+    private let allowsLegacyRemoteRefresh: Bool
+    private let accountAction: (() -> Void)?
 
     let defaultAlternativeTag = "__DEFAULT__"
     let hours = Array(0...23)
@@ -37,8 +41,33 @@ struct ContentView: View {
     @State private var editingRoomNumberItem: CalculationHistoryItem?
     @State private var calculationPendingDeletion: CalculationHistoryItem?
     @State private var revealedCalculationID: CalculationHistoryItem.ID?
-    @StateObject private var historyStore = CalculationHistoryStore()
-    @StateObject private var hotelStayStore = HotelStayStore.shared
+    @State private var showingManualStorageError = false
+    @StateObject private var historyStore: CalculationHistoryStore
+    @StateObject private var hotelStayStore: HotelStayStore
+
+    init(
+        dataService: DataService? = nil,
+        hotelDataService: HotelDataService? = nil,
+        whatsNewDataService: WhatsNewDataService? = nil,
+        allowsLegacyRemoteRefresh: Bool = true,
+        historyStore: CalculationHistoryStore? = nil,
+        hotelStayStore: HotelStayStore? = nil,
+        accountAction: (() -> Void)? = nil
+    ) {
+        _dataService = StateObject(wrappedValue: dataService ?? .shared)
+        _hotelDataService = StateObject(wrappedValue: hotelDataService ?? .shared)
+        _whatsNewDataService = StateObject(
+            wrappedValue: whatsNewDataService ?? .shared
+        )
+        _historyStore = StateObject(
+            wrappedValue: historyStore ?? CalculationHistoryStore()
+        )
+        _hotelStayStore = StateObject(
+            wrappedValue: hotelStayStore ?? .shared
+        )
+        self.allowsLegacyRemoteRefresh = allowsLegacyRemoteRefresh
+        self.accountAction = accountAction
+    }
 
     var stations: [Station] {
         dataService.stations
@@ -70,7 +99,55 @@ struct ContentView: View {
         stations.first { $0.iata == selectedStation }
     }
 
+    var stationSelectionTitle: String {
+        selectedStation == "WhereAmI?" ? "Select station" : selectedStation
+    }
+
+    var stationSelectionSubtitle: String {
+        guard let station = selectedStationObject else {
+            return "Destination"
+        }
+        return "\(station.city), \(station.country)"
+    }
+
+    @ViewBuilder
+    var stationSelectionPrimaryLabel: some View {
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(spacing: 4) {
+                Image(systemName: "airplane.departure")
+                    .foregroundStyle(.secondary)
+
+                Text(stationSelectionTitle)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Image(systemName: "chevron.down")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } else {
+            HStack(spacing: 6) {
+                Image(systemName: "airplane.departure")
+                    .foregroundStyle(.secondary)
+
+                Text(stationSelectionTitle)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+
+                Image(systemName: "chevron.down")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
     var mainContentTopPadding: CGFloat {
+        if dynamicTypeSize.isAccessibilitySize {
+            return 24
+        }
+
         if selectedStation == "WhereAmI?" {
             return 120
         }
@@ -107,29 +184,20 @@ struct ContentView: View {
                         showingStationPicker = true
                     } label: {
                         VStack(spacing: 5) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "airplane.departure")
-                                    .foregroundStyle(.secondary)
+                            stationSelectionPrimaryLabel
+                                .frame(maxWidth: .infinity, alignment: .center)
 
-                                Text(selectedStation == "WhereAmI?" ? "Select station" : selectedStation)
-                                    .font(.headline)
-                                    .foregroundStyle(.primary)
-
-                                Image(systemName: "chevron.down")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .center)
-
-                            Text(selectedStationObject.map { "\($0.city), \($0.country)" } ?? "Destination")
+                            Text(stationSelectionSubtitle)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .multilineTextAlignment(.center)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                         .padding(.vertical, 8)
                         .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity)
                     .padding(.horizontal)
                     .onChange(of: selectedStation) {
                         selectedAlternative = defaultAlternativeTag
@@ -178,12 +246,20 @@ struct ContentView: View {
             )
         }
         .sheet(isPresented: $showingSettings) {
-            SettingsView(timeInputReferenceRawValue: $timeInputReferenceRawValue)
+            SettingsView(
+                timeInputReferenceRawValue: $timeInputReferenceRawValue,
+                dataService: dataService,
+                hotelDataService: hotelDataService,
+                whatsNewDataService: whatsNewDataService,
+                allowsLegacyRemoteRefresh: allowsLegacyRemoteRefresh
+            )
         }
         .task {
-            await dataService.refreshRemoteData()
-            await hotelDataService.refreshRemoteData()
-            await whatsNewDataService.refreshRemoteData()
+            if allowsLegacyRemoteRefresh {
+                await dataService.refreshRemoteData()
+                await hotelDataService.refreshRemoteData()
+                await whatsNewDataService.refreshRemoteData()
+            }
         }
         .onChange(of: showingSettings) {
             if !showingSettings {
@@ -191,7 +267,11 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $showingHotels) {
-            HotelsView()
+            HotelsView(
+                dataService: dataService,
+                hotelDataService: hotelDataService,
+                hotelStayStore: hotelStayStore
+            )
         }
         .sheet(isPresented: $showingHistory) {
             NavigationStack {
@@ -221,7 +301,10 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $showingWhatsNew) {
-            WhatsNewView()
+            WhatsNewView(
+                dataService: whatsNewDataService,
+                allowsLegacyRemoteRefresh: allowsLegacyRemoteRefresh
+            )
         }
         .onChange(of: showingWhatsNew) {
             if !showingWhatsNew {
@@ -229,7 +312,10 @@ struct ContentView: View {
             }
         }
         .sheet(item: $selectedHotel) { hotel in
-            HotelDetailView(hotel: hotel)
+            HotelDetailView(
+                hotel: hotel,
+                hotelStayStore: hotelStayStore
+            )
         }
         .alert(
             "Delete calculation?",
@@ -263,6 +349,14 @@ struct ContentView: View {
             } else {
                 Text("Are you sure you want to delete this saved calculation?")
             }
+        }
+        .alert(
+            "Protected storage unavailable",
+            isPresented: $showingManualStorageError
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("The calculation was not saved. Please try again.")
         }
     }
 
@@ -619,7 +713,7 @@ struct ContentView: View {
             if let result = calculateResult(for: station) {
                 resultCard(result, station: station, hotel: hotel(for: station))
             } else {
-                errorCard
+                errorCard(for: station)
             }
         }
         .padding(.horizontal)
@@ -682,9 +776,9 @@ struct ContentView: View {
                 showingWhatsNew = true
             } label: {
                 Image(systemName: "sparkles")
-                    .font(.title3)
+                    .font(.system(size: 20))
                     .foregroundStyle(.secondary)
-                    .padding(10)
+                    .frame(width: 44, height: 44)
                     .background(.gray.opacity(0.10))
                     .clipShape(Circle())
             }
@@ -694,9 +788,9 @@ struct ContentView: View {
                 showingHotels = true
             } label: {
                 Image(systemName: "bed.double")
-                    .font(.title3)
+                    .font(.system(size: 20))
                     .foregroundStyle(.secondary)
-                    .padding(10)
+                    .frame(width: 44, height: 44)
                     .background(.gray.opacity(0.10))
                     .clipShape(Circle())
             }
@@ -706,9 +800,9 @@ struct ContentView: View {
                 showingHistory = true
             } label: {
                 Image(systemName: "clock.arrow.circlepath")
-                    .font(.title3)
+                    .font(.system(size: 20))
                     .foregroundStyle(.secondary)
-                    .padding(10)
+                    .frame(width: 44, height: 44)
                     .background(.gray.opacity(0.10))
                     .clipShape(Circle())
             }
@@ -718,13 +812,25 @@ struct ContentView: View {
                 showingSettings = true
             } label: {
                 Image(systemName: "gearshape")
-                    .font(.title3)
+                    .font(.system(size: 20))
                     .foregroundStyle(.secondary)
-                    .padding(10)
+                    .frame(width: 44, height: 44)
                     .background(.gray.opacity(0.10))
                     .clipShape(Circle())
             }
             .accessibilityLabel("Settings")
+
+            if let accountAction {
+                Button(action: accountAction) {
+                    Image(systemName: "person.crop.circle")
+                        .font(.system(size: 20))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 44, height: 44)
+                        .background(.gray.opacity(0.10))
+                        .clipShape(Circle())
+                }
+                .accessibilityLabel("Account")
+            }
         }
         .padding(.horizontal)
     }
@@ -793,11 +899,13 @@ struct ContentView: View {
                 .buttonStyle(.bordered)
 
                 Button {
-                    saveCalculation(result, for: station)
-                    didSaveCalculation = true
-
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
-                        resetCalculatorForNextInput()
+                    if saveCalculation(result, for: station) {
+                        didSaveCalculation = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                            resetCalculatorForNextInput()
+                        }
+                    } else {
+                        showingManualStorageError = true
                     }
                 } label: {
                     Label(
@@ -900,15 +1008,26 @@ struct ContentView: View {
     }
 
 
-    var errorCard: some View {
-        VStack(spacing: 10) {
+    func errorCard(for station: Station) -> some View {
+        let invalidLocalTime = localDepartureLabel(for: station)
+            == "Invalid local time"
+
+        return VStack(spacing: 10) {
             Text("⚠️")
                 .font(.largeTitle)
 
-            Text("No valid transport rule found")
+            Text(
+                invalidLocalTime
+                    ? "Invalid local departure time"
+                    : "No valid transport rule found"
+            )
                 .font(.headline)
 
-            Text("Check flight time or station configuration.")
+            Text(
+                invalidLocalTime
+                    ? "Choose a different local time for this date."
+                    : "Check flight time or station configuration."
+            )
                 .foregroundStyle(.secondary)
         }
         .padding()
@@ -932,7 +1051,10 @@ struct ContentView: View {
 
 
 
-    func saveCalculation(_ result: CalculationResult, for station: Station) {
+    func saveCalculation(
+        _ result: CalculationResult,
+        for station: Station
+    ) -> Bool {
         let trimmedRoomNumber = roomNumber.trimmingCharacters(in: .whitespacesAndNewlines)
 
         let item = CalculationHistoryItem(
@@ -947,15 +1069,21 @@ struct ContentView: View {
             appliedRuleLabel: result.appliedRuleLabel
         )
 
-        historyStore.save(item)
+        guard historyStore.save(item) else {
+            return false
+        }
 
         if let hotel = hotel(for: station) {
-            hotelStayStore.upsertStay(
+            guard hotelStayStore.upsertStay(
                 for: item,
                 hotel: hotel,
                 roomNumber: trimmedRoomNumber
-            )
+            ) else {
+                historyStore.delete(item)
+                return false
+            }
         }
+        return true
     }
 
     func saveRoomNumber(_ roomNumber: String, for item: CalculationHistoryItem) {
@@ -966,11 +1094,18 @@ struct ContentView: View {
             for: item,
             roomNumber: normalizedRoomNumber
         ) else {
+            showingManualStorageError = true
             return
         }
 
         guard let normalizedRoomNumber else {
-            hotelStayStore.removeStay(for: updatedItem)
+            if !hotelStayStore.removeStay(for: updatedItem) {
+                historyStore.updateRoomNumber(
+                    for: updatedItem,
+                    roomNumber: item.roomNumber
+                )
+                showingManualStorageError = true
+            }
             return
         }
 
@@ -978,11 +1113,17 @@ struct ContentView: View {
             return
         }
 
-        hotelStayStore.upsertStay(
+        if !hotelStayStore.upsertStay(
             for: updatedItem,
             hotel: hotel,
             roomNumber: normalizedRoomNumber
-        )
+        ) {
+            historyStore.updateRoomNumber(
+                for: updatedItem,
+                roomNumber: item.roomNumber
+            )
+            showingManualStorageError = true
+        }
     }
 
     func resetCalculatorForNextInput() {

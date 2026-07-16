@@ -2,10 +2,11 @@ import SwiftUI
 import MapKit
 import SafariServices
 
+@MainActor
 struct HotelDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
-    @StateObject private var hotelStayStore = HotelStayStore.shared
+    @ObservedObject private var hotelStayStore: HotelStayStore
     @State private var pendingContactAction: HotelContactAction?
     @State private var stayPendingDeletion: HotelStay?
     @State private var revealedStayID: HotelStay.ID?
@@ -13,6 +14,16 @@ struct HotelDetailView: View {
     @State private var showingWebMaps = false
 
     let hotel: Hotel
+
+    init(hotel: Hotel) {
+        self.hotel = hotel
+        hotelStayStore = .shared
+    }
+
+    init(hotel: Hotel, hotelStayStore: HotelStayStore) {
+        self.hotel = hotel
+        self.hotelStayStore = hotelStayStore
+    }
 
     var body: some View {
         NavigationStack {

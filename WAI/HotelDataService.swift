@@ -10,10 +10,16 @@ extension HotelDocument: OperationalDataDocument {
     }
 
     var isValid: Bool {
-        guard !document.isEmpty,
-              !revision.isEmpty,
+        guard OperationalDataFormat.isBoundedText(
+                  document,
+                  maximumBytes: 512
+              ),
+              OperationalDataFormat.isBoundedText(
+                  revision,
+                  maximumBytes: 128
+              ),
               TransportTimeFormat.isValidISODate(date),
-              !hotels.isEmpty else {
+              (1...500).contains(hotels.count) else {
             return false
         }
 
@@ -23,11 +29,40 @@ extension HotelDocument: OperationalDataDocument {
         }
 
         return hotels.allSatisfy { hotel in
-            hotel.iata.count == 3
-            && hotel.icao.count == 4
-            && !hotel.city.isEmpty
-            && !hotel.country.isEmpty
-            && !hotel.name.isEmpty
+            OperationalDataFormat.isIdentifier(
+                hotel.iata,
+                length: 3,
+                allowsDigits: false
+            )
+            && OperationalDataFormat.isIdentifier(
+                hotel.icao,
+                length: 4,
+                allowsDigits: true
+            )
+            && OperationalDataFormat.isBoundedText(
+                hotel.city,
+                maximumBytes: 256
+            )
+            && OperationalDataFormat.isBoundedText(
+                hotel.country,
+                maximumBytes: 256
+            )
+            && OperationalDataFormat.isBoundedText(
+                hotel.name,
+                maximumBytes: 512
+            )
+            && OperationalDataFormat.isOptionalBoundedText(
+                hotel.phone,
+                maximumBytes: 512
+            )
+            && OperationalDataFormat.isOptionalBoundedText(
+                hotel.email,
+                maximumBytes: 512
+            )
+            && OperationalDataFormat.isOptionalBoundedText(
+                hotel.fax,
+                maximumBytes: 512
+            )
         }
     }
 }
@@ -47,15 +82,19 @@ final class HotelDataService: ObservableObject {
     )
 
     private static let bundledResourceName = "wai_hotel_map_rev51"
-    private static let cacheFileName = "wai_hotel_map_current.json"
+    private static let cacheFileName = WAILegacyOperationalCacheFiles.hotelMap
     private static let bundledFallbackSource = OperationalDataDocumentSource(
         document: "FO/CP/CRS Nº140 REV51 29JUN26",
         revision: "REV51",
         date: "2026-06-29"
     )
+    private let mode: OperationalDataServiceMode
 
-    private init() {
-        loadInitialHotels()
+    init(mode: OperationalDataServiceMode = .legacyRemote) {
+        self.mode = mode
+        if mode == .legacyRemote {
+            loadInitialHotels()
+        }
     }
 
     func hotel(for stationIATA: String) -> Hotel? {
@@ -64,6 +103,9 @@ final class HotelDataService: ObservableObject {
 
     @discardableResult
     func refreshRemoteData() async -> Bool {
+        guard mode == .legacyRemote else {
+            return false
+        }
         guard let dataset = await RemoteJSONLoader.refreshRemote(
             documentType: HotelDocument.self,
             remoteURL: RemoteDataConfiguration.hotelMapURL,
@@ -95,5 +137,25 @@ final class HotelDataService: ObservableObject {
         hotels = dataset.document.hotels
         sourceInfo = dataset.sourceInfo
         print("Loaded \(dataset.document.hotels.count) hotels from \(dataset.sourceInfo.sourceLabel)")
+    }
+
+    func applyProtected(
+        document: HotelDocument,
+        sourceInfo: OperationalDataSourceInfo
+    ) {
+        guard mode == .protectedRelease, document.isValid else {
+            return
+        }
+        self.document = document
+        hotels = document.hotels
+        self.sourceInfo = sourceInfo
+    }
+
+    func clearProtectedData() {
+        guard mode == .protectedRelease else {
+            return
+        }
+        hotels = []
+        document = nil
     }
 }

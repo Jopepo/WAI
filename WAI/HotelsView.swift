@@ -1,11 +1,25 @@
 import SwiftUI
 
+@MainActor
 struct HotelsView: View {
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var dataService = DataService.shared
-    @StateObject private var hotelDataService = HotelDataService.shared
+    @StateObject private var dataService: DataService
+    @StateObject private var hotelDataService: HotelDataService
+    @StateObject private var hotelStayStore: HotelStayStore
     @State private var searchText = ""
     @State private var selectedHotel: Hotel?
+
+    init(
+        dataService: DataService? = nil,
+        hotelDataService: HotelDataService? = nil,
+        hotelStayStore: HotelStayStore? = nil
+    ) {
+        _dataService = StateObject(wrappedValue: dataService ?? .shared)
+        _hotelDataService = StateObject(wrappedValue: hotelDataService ?? .shared)
+        _hotelStayStore = StateObject(
+            wrappedValue: hotelStayStore ?? .shared
+        )
+    }
 
     private var availableHotels: [Hotel] {
         let stationIATAs = Set(dataService.stations.map { $0.iata.uppercased() })
@@ -72,7 +86,10 @@ struct HotelsView: View {
             }
         }
         .sheet(item: $selectedHotel) { hotel in
-            HotelDetailView(hotel: hotel)
+            HotelDetailView(
+                hotel: hotel,
+                hotelStayStore: hotelStayStore
+            )
         }
     }
 

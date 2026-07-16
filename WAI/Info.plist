@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <key>NSCalendarsFullAccessUsageDescription</key>
+    <string>WAI reads your crew roster from Calendar to build your operational timeline and automatic timings. Calendar data stays on this device.</string>
     <key>WAIRemoteTransportRulesURL</key>
     <string>https://raw.githubusercontent.com/Jopepo/WAI/main/WAI/wai_transport_rules_current.json</string>
     <key>WAIRemoteHotelMapURL</key>

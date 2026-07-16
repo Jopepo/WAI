@@ -15,19 +15,26 @@ final class WhatsNewDataService: ObservableObject {
     )
 
     private static let bundledResourceName = "wai_whats_new_current"
-    private static let cacheFileName = "wai_whats_new_current.json"
+    private static let cacheFileName = WAILegacyOperationalCacheFiles.whatsNew
     private static let bundledFallbackSource = OperationalDataDocumentSource(
         document: "WAI What's New",
         revision: "v2.2",
         date: "2026-07-07"
     )
+    private let mode: OperationalDataServiceMode
 
-    private init() {
-        loadInitialItems()
+    init(mode: OperationalDataServiceMode = .legacyRemote) {
+        self.mode = mode
+        if mode == .legacyRemote {
+            loadInitialItems()
+        }
     }
 
     @discardableResult
     func refreshRemoteData() async -> Bool {
+        guard mode == .legacyRemote else {
+            return false
+        }
         guard let dataset = await RemoteJSONLoader.refreshRemote(
             documentType: WhatsNewDocument.self,
             remoteURL: RemoteDataConfiguration.whatsNewURL,
@@ -64,5 +71,25 @@ final class WhatsNewDataService: ObservableObject {
         maxVisibleItems = dataset.document.maxVisibleItems ?? 10
         sourceInfo = dataset.sourceInfo
         print("Loaded \(dataset.document.items.count) what's new items from \(dataset.sourceInfo.sourceLabel)")
+    }
+
+    func applyProtected(
+        document: WhatsNewDocument,
+        sourceInfo: OperationalDataSourceInfo
+    ) {
+        guard mode == .protectedRelease, document.isValid else {
+            return
+        }
+        items = document.items
+        maxVisibleItems = document.maxVisibleItems ?? 10
+        self.sourceInfo = sourceInfo
+    }
+
+    func clearProtectedData() {
+        guard mode == .protectedRelease else {
+            return
+        }
+        items = []
+        maxVisibleItems = 10
     }
 }

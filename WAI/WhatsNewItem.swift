@@ -23,7 +23,10 @@ struct WhatsNewDocument: Codable, OperationalDataDocument {
     }
 
     var isValid: Bool {
-        guard !items.isEmpty else {
+        guard !items.isEmpty,
+              items.count <= 100,
+              maxVisibleItems.map({ (1...100).contains($0) }) != false,
+              source.map(\.isValid) != false else {
             return false
         }
 
@@ -45,9 +48,12 @@ struct WhatsNewItem: Identifiable, Codable {
     let documentRevision: String
 
     var isValid: Bool {
-        !id.isEmpty
-        && !title.isEmpty
-        && !detail.isEmpty
-        && !documentRevision.isEmpty
+        OperationalDataFormat.isBoundedText(id, maximumBytes: 128)
+        && OperationalDataFormat.isBoundedText(title, maximumBytes: 256)
+        && OperationalDataFormat.isBoundedText(detail, maximumBytes: 4_096)
+        && OperationalDataFormat.isBoundedText(
+            documentRevision,
+            maximumBytes: 128
+        )
     }
 }

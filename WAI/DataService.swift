@@ -9,7 +9,8 @@ struct StationData: Codable, OperationalDataDocument {
     }
 
     var isValid: Bool {
-        guard !stations.isEmpty else {
+        guard (1...500).contains(stations.count),
+              source.map(\.isValid) != false else {
             return false
         }
 
@@ -18,14 +19,7 @@ struct StationData: Codable, OperationalDataDocument {
             return false
         }
 
-        return stations.allSatisfy { station in
-            station.iata.count == 3
-            && !station.city.isEmpty
-            && TimeZone(identifier: station.timeZone) != nil
-            && station.defaultRule.isValid
-            && station.alternatives.allSatisfy { $0.transportMinutes >= 0 && !$0.label.isEmpty }
-            && (station.holidays ?? []).allSatisfy { $0.isValid }
-        }
+        return stations.allSatisfy(\.isValid)
     }
 }
 
@@ -43,15 +37,20 @@ final class DataService: ObservableObject {
     )
 
     private static let bundledResourceName = "wai_transport_rules_rev73"
-    private static let cacheFileName = "wai_transport_rules_current.json"
+    private static let cacheFileName =
+        WAILegacyOperationalCacheFiles.transportRules
     private static let bundledFallbackSource = OperationalDataDocumentSource(
         document: "FO/CP/CRS Nº141 REV73 13JUL26",
         revision: "REV73",
         date: "2026-07-13"
     )
+    private let mode: OperationalDataServiceMode
 
-    private init() {
-        loadInitialStations()
+    init(mode: OperationalDataServiceMode = .legacyRemote) {
+        self.mode = mode
+        if mode == .legacyRemote {
+            loadInitialStations()
+        }
     }
 
     static func loadStations() -> [Station] {
@@ -60,6 +59,9 @@ final class DataService: ObservableObject {
 
     @discardableResult
     func refreshRemoteData() async -> Bool {
+        guard mode == .legacyRemote else {
+            return false
+        }
         guard let dataset = await RemoteJSONLoader.refreshRemote(
             documentType: StationData.self,
             remoteURL: RemoteDataConfiguration.transportRulesURL,
@@ -85,6 +87,24 @@ final class DataService: ObservableObject {
         stations = dataset.document.stations
         sourceInfo = dataset.sourceInfo
         print("Loaded \(dataset.document.stations.count) stations from \(dataset.sourceInfo.sourceLabel)")
+    }
+
+    func applyProtected(
+        document: StationData,
+        sourceInfo: OperationalDataSourceInfo
+    ) {
+        guard mode == .protectedRelease, document.isValid else {
+            return
+        }
+        stations = document.stations
+        self.sourceInfo = sourceInfo
+    }
+
+    func clearProtectedData() {
+        guard mode == .protectedRelease else {
+            return
+        }
+        stations = []
     }
 
     private static func loadInitialDataset() -> RemoteJSONDataset<StationData>? {

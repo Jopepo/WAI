@@ -7,16 +7,34 @@
 
 import SwiftUI
 
+@MainActor
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var timeInputReferenceRawValue: String
-    @StateObject private var dataService = DataService.shared
-    @StateObject private var hotelDataService = HotelDataService.shared
-    @StateObject private var whatsNewDataService = WhatsNewDataService.shared
+    @StateObject private var dataService: DataService
+    @StateObject private var hotelDataService: HotelDataService
+    @StateObject private var whatsNewDataService: WhatsNewDataService
+    private let allowsLegacyRemoteRefresh: Bool
     @State private var isRefreshingData = false
     @State private var refreshStatusMessage: String?
     @State private var lastRefreshCheck: Date?
     @State private var showingDataStatus = false
+
+    init(
+        timeInputReferenceRawValue: Binding<String>,
+        dataService: DataService? = nil,
+        hotelDataService: HotelDataService? = nil,
+        whatsNewDataService: WhatsNewDataService? = nil,
+        allowsLegacyRemoteRefresh: Bool = true
+    ) {
+        _timeInputReferenceRawValue = timeInputReferenceRawValue
+        _dataService = StateObject(wrappedValue: dataService ?? .shared)
+        _hotelDataService = StateObject(wrappedValue: hotelDataService ?? .shared)
+        _whatsNewDataService = StateObject(
+            wrappedValue: whatsNewDataService ?? .shared
+        )
+        self.allowsLegacyRemoteRefresh = allowsLegacyRemoteRefresh
+    }
 
     private var timeInputReference: Binding<TimeInputReference> {
         Binding(
@@ -52,7 +70,13 @@ struct SettingsView: View {
             }
         }
         .sheet(isPresented: $showingDataStatus) {
-            DataStatusView(lastRefreshCheck: lastRefreshCheck)
+            DataStatusView(
+                lastRefreshCheck: lastRefreshCheck,
+                dataService: dataService,
+                hotelDataService: hotelDataService,
+                whatsNewDataService: whatsNewDataService,
+                showsTechnicalSourceLabels: allowsLegacyRemoteRefresh
+            )
         }
     }
 
@@ -105,17 +129,19 @@ struct SettingsView: View {
                     }
                     .font(.subheadline)
 
-                    Button {
-                        refreshOperationalData()
-                    } label: {
-                        if isRefreshingData {
-                            ProgressView()
-                        } else {
-                            Label("Refresh", systemImage: "arrow.clockwise")
+                    if allowsLegacyRemoteRefresh {
+                        Button {
+                            refreshOperationalData()
+                        } label: {
+                            if isRefreshingData {
+                                ProgressView()
+                            } else {
+                                Label("Refresh", systemImage: "arrow.clockwise")
+                            }
                         }
+                        .font(.subheadline)
+                        .disabled(isRefreshingData)
                     }
-                    .font(.subheadline)
-                    .disabled(isRefreshingData)
                 }
 
                 if let refreshStatusMessage {
@@ -150,7 +176,11 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Text(sourceInfo.sourceLabel)
+                Text(
+                    allowsLegacyRemoteRefresh
+                        ? sourceInfo.sourceLabel
+                        : "Verified"
+                )
                     .font(.caption2)
                     .fontWeight(.semibold)
                     .foregroundStyle(.secondary)
@@ -289,7 +319,7 @@ struct SettingsView: View {
 
         I want to send feedback about WAI.
 
-        Transport document: FO/CP/CRS Nº141 REV71 · 03 Jul 2026
+        Transport document: \(dataService.sourceInfo.document)
         App version: \(appVersionLabel)
 
         Feedback / bug:

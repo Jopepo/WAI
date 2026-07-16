@@ -1,0 +1,23 @@
+name: Validate operational data
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate current JSON documents
+        run: python3 scripts/validate-wai-data.py
+      - name: Test release preparation
+        run: python3 -m unittest discover -s scripts/tests -p 'test_*.py'
+      - name: Build release manifest without publishing
+        run: python3 scripts/publish-operational-release.py
