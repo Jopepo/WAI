@@ -9,12 +9,21 @@ MIGRATION = (
     / "migrations"
     / "202607150001_secure_operational_data.sql"
 )
+HARDENING_MIGRATION = (
+    Path(__file__).resolve().parents[2]
+    / "supabase"
+    / "migrations"
+    / "202607160001_harden_function_privileges.sql"
+)
 
 
 class SecureOperationalDataMigrationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.sql = MIGRATION.read_text(encoding="utf-8").lower()
+        cls.hardening_sql = HARDENING_MIGRATION.read_text(
+            encoding="utf-8"
+        ).lower()
 
     def test_authenticated_users_have_read_only_table_grants(self):
         self.assertIn(
@@ -60,6 +69,30 @@ class SecureOperationalDataMigrationTests(unittest.TestCase):
             f"grant execute on function {signature}\n"
             "to service_role;",
             self.sql,
+        )
+
+    def test_api_roles_cannot_execute_trigger_helpers(self):
+        for signature in (
+            "public.wai_create_profile()",
+            "public.wai_set_profile_status_timestamps()",
+        ):
+            self.assertIn(
+                f"revoke all on function {signature}\n"
+                "from public, anon, authenticated, service_role;",
+                self.hardening_sql,
+            )
+
+    def test_approval_predicate_is_not_executable_by_anon(self):
+        signature = "public.wai_is_approved()"
+        self.assertIn(
+            f"revoke all on function {signature}\n"
+            "from public, anon, authenticated, service_role;",
+            self.hardening_sql,
+        )
+        self.assertIn(
+            f"grant execute on function {signature}\n"
+            "to authenticated, service_role;",
+            self.hardening_sql,
         )
 
     def test_bucket_is_private_and_reads_only_active_release_objects(self):
