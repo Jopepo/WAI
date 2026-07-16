@@ -244,6 +244,26 @@ struct RosterCalendarSourceTests {
         #expect(original == updated)
     }
 
+    @Test func briefingEventMarkerIsStableAndDoesNotExposeLegID() throws {
+        let first = try #require(
+            EventKitRosterCalendarSource.briefingEventURL(
+                for: "private-leg-identifier"
+            )
+        )
+        let second = try #require(
+            EventKitRosterCalendarSource.briefingEventURL(
+                for: "private-leg-identifier"
+            )
+        )
+
+        #expect(first == second)
+        #expect(first.scheme == "wai")
+        #expect(!first.absoluteString.contains("private-leg-identifier"))
+        #expect(
+            EventKitRosterCalendarSource.briefingEventURL(for: "") == nil
+        )
+    }
+
     @Test func oversizedCalendarNotesAreIgnoredBeforePayloadCreation() throws {
         let snapshot = event(
             id: "oversized",

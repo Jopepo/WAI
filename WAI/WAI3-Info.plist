@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>WAI reads your crew roster from Calendar to build your operational timeline and automatic timings. Calendar data stays on this device.</string>
+	<string>WAI reads your crew roster and creates or updates WAI briefing leg events in your selected Calendar account. Passenger and commander password data are never added to Calendar.</string>
 	<key>WAI3CompatibilityVersion</key>
 	<string>$(WAI3_COMPATIBILITY_VERSION)</string>
 	<key>WAI3SecureModeEnabled</key>

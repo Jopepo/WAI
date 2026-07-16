@@ -100,6 +100,7 @@ struct WAI3CrewWorkspaceView: View {
                 hotel: selection.stay.flatMap {
                     hotelDataService.hotel(for: $0.stationIATA)
                 },
+                rosterController: rosterController,
                 roomNumberController: roomNumberController,
                 personalizationController: personalizationController,
                 hotelStayStore: hotelStayStore
@@ -1273,6 +1274,7 @@ private struct WAI3DutyDetailView: View {
     let analysis: RosterDutyAnalysis?
     let stations: [Station]
     let hotel: Hotel?
+    @ObservedObject var rosterController: WAIRosterController
     @ObservedObject var roomNumberController: WAIRoomNumberController
     @ObservedObject var personalizationController:
         WAIRosterPersonalizationController
@@ -1328,9 +1330,9 @@ private struct WAI3DutyDetailView: View {
                     }
                 }
 
-                homeDepartureSection
-
                 briefingSection
+
+                homeDepartureSection
 
                 if let analysis, !analysis.flightPeriods.isEmpty {
                     Section("Flight periods") {
@@ -1685,24 +1687,79 @@ private struct WAI3DutyDetailView: View {
                     )
                     NavigationLink {
                         WAI3LegBriefingEditView(
+                            duty: duty,
                             leg: leg,
                             rosterBlockMinutes: analysis?
                                 .analysis(for: leg.id)?
                                 .blockMinutes,
-                            controller: personalizationController
+                            controller: personalizationController,
+                            rosterController: rosterController
                         )
                     } label: {
-                        Label("Edit briefing", systemImage: "pencil")
+                        Label("Update briefing", systemImage: "pencil")
                     }
                     .accessibilityIdentifier(
                         "wai3.briefing.edit.\(leg.id)"
                     )
+
+                    briefingCalendarStatus(for: leg)
 
                     if leg.id != duty.legs.last?.id {
                         Divider()
                     }
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func briefingCalendarStatus(for leg: RosterLeg) -> some View {
+        switch rosterController.briefingCalendarSyncState(for: leg.id) {
+        case .syncing:
+            HStack(spacing: 10) {
+                ProgressView()
+                Text("Updating Calendar")
+            }
+            .foregroundStyle(.secondary)
+        case .synced(let calendarTitle):
+            Label(
+                "Calendar updated · \(calendarTitle)",
+                systemImage: "calendar.badge.checkmark"
+            )
+            .foregroundStyle(.green)
+            .accessibilityIdentifier("wai3.briefing.calendarSynced")
+        case .removed(let calendarTitle):
+            Label(
+                "Calendar reset · \(calendarTitle)",
+                systemImage: "calendar"
+            )
+            .foregroundStyle(.secondary)
+        case .notAuthorized:
+            Label(
+                "Calendar access is required",
+                systemImage: "calendar.badge.exclamationmark"
+            )
+            .foregroundStyle(.orange)
+        case .sourceEventNotFound:
+            Label(
+                "Roster event not found in Calendar",
+                systemImage: "calendar.badge.exclamationmark"
+            )
+            .foregroundStyle(.orange)
+        case .readOnly:
+            Label(
+                "Roster calendar is read-only",
+                systemImage: "lock"
+            )
+            .foregroundStyle(.orange)
+        case .failed:
+            Label(
+                "Calendar update failed",
+                systemImage: "exclamationmark.triangle"
+            )
+            .foregroundStyle(.orange)
+        case nil:
+            EmptyView()
         }
     }
 
@@ -2029,9 +2086,11 @@ private struct WAI3HomeRoutineOverrideView: View {
 
 private struct WAI3LegBriefingEditView: View {
     @Environment(\.dismiss) private var dismiss
+    let duty: RosterDuty
     let leg: RosterLeg
     let rosterBlockMinutes: Int?
     @ObservedObject var controller: WAIRosterPersonalizationController
+    @ObservedObject var rosterController: WAIRosterController
 
     @State private var passengerLoad = ""
     @State private var usesCustomFlightTime = false
@@ -2039,6 +2098,7 @@ private struct WAI3LegBriefingEditView: View {
     @State private var flightMinutes = 0
     @State private var commanderPassword = ""
     @State private var showsPassword = false
+    @State private var isSaving = false
 
     var body: some View {
         Form {
@@ -2109,6 +2169,7 @@ private struct WAI3LegBriefingEditView: View {
                             )
                         }
                     }
+                    .textContentType(.none)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .accessibilityIdentifier("wai3.briefing.password")
@@ -2155,8 +2216,12 @@ private struct WAI3LegBriefingEditView: View {
                 Button("Cancel") { dismiss() }
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button("Save", action: save)
-                    .disabled(!canSave)
+                Button("Save") {
+                    Task {
+                        await save()
+                    }
+                }
+                .disabled(!canSave || isSaving)
             }
         }
         .onAppear(perform: load)
@@ -2215,16 +2280,27 @@ private struct WAI3LegBriefingEditView: View {
         flightMinutes = totalMinutes % 60
     }
 
-    private func save() {
-        if controller.setBriefing(
+    private func save() async {
+        isSaving = true
+        let plannedFlightMinutes = usesCustomFlightTime
+            ? customFlightMinutes
+            : nil
+        guard controller.setBriefing(
             for: leg.id,
             passengerLoad: passengerLoad,
-            plannedFlightMinutes:
-                usesCustomFlightTime ? customFlightMinutes : nil,
+            plannedFlightMinutes: plannedFlightMinutes,
             commanderPassword: commanderPassword
-        ) {
-            dismiss()
+        ) else {
+            isSaving = false
+            return
         }
+        await rosterController.syncBriefingToCalendar(
+            duty: duty,
+            leg: leg,
+            plannedFlightMinutes: plannedFlightMinutes
+        )
+        isSaving = false
+        dismiss()
     }
 }
 

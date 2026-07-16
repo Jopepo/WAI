@@ -495,6 +495,16 @@ private final class WAI3DebugCalendarSource: WAIRosterCalendarSourcing {
     ) throws -> [WAIRosterCalendarCandidate] {
         []
     }
+
+    func syncBriefingEvent(
+        duty: RosterDuty,
+        leg: RosterLeg,
+        plannedFlightMinutes: Int?
+    ) throws -> WAIBriefingCalendarSyncResult {
+        plannedFlightMinutes == nil
+            ? .removed(calendarTitle: "Escala TAP UI Test")
+            : .synced(calendarTitle: "Escala TAP UI Test")
+    }
 }
 
 private final class WAI3DebugRoomNumberStore: RosterRoomNumberStoring {

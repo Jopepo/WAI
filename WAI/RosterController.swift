@@ -30,6 +30,16 @@ enum WAIRosterCalendarState: Equatable, Sendable {
     case failed
 }
 
+enum WAIBriefingCalendarSyncState: Equatable, Sendable {
+    case syncing
+    case synced(calendarTitle: String)
+    case removed(calendarTitle: String)
+    case notAuthorized
+    case sourceEventNotFound
+    case readOnly
+    case failed
+}
+
 private enum WAIRosterFileReadError: Error {
     case fileTooLarge
 }
@@ -39,6 +49,8 @@ final class WAIRosterController: ObservableObject {
     @Published private(set) var state: WAIRosterState = .idle
     @Published private(set) var importFailure: WAIRosterImportFailure?
     @Published private(set) var calendarState: WAIRosterCalendarState = .notDetermined
+    @Published private(set) var briefingCalendarSyncStates:
+        [String: WAIBriefingCalendarSyncState] = [:]
 
     private let maximumImportBytes = 5 * 1_024 * 1_024
     private let store: RosterArchiveStoring
@@ -279,12 +291,53 @@ final class WAIRosterController: ObservableObject {
         importFailure = nil
     }
 
+    func briefingCalendarSyncState(
+        for legID: String
+    ) -> WAIBriefingCalendarSyncState? {
+        briefingCalendarSyncStates[legID]
+    }
+
+    func syncBriefingToCalendar(
+        duty: RosterDuty,
+        leg: RosterLeg,
+        plannedFlightMinutes: Int?
+    ) async {
+        guard ownerUserID != nil else {
+            briefingCalendarSyncStates[leg.id] = .failed
+            return
+        }
+        briefingCalendarSyncStates[leg.id] = .syncing
+
+        do {
+            let result = try calendarSource.syncBriefingEvent(
+                duty: duty,
+                leg: leg,
+                plannedFlightMinutes: plannedFlightMinutes
+            )
+            briefingCalendarSyncStates[leg.id] = switch result {
+            case .synced(let calendarTitle):
+                .synced(calendarTitle: calendarTitle)
+            case .removed(let calendarTitle):
+                .removed(calendarTitle: calendarTitle)
+            case .notAuthorized:
+                .notAuthorized
+            case .sourceEventNotFound:
+                .sourceEventNotFound
+            case .readOnly:
+                .readOnly
+            }
+        } catch {
+            briefingCalendarSyncStates[leg.id] = .failed
+        }
+    }
+
     func reset() {
         operationID = UUID()
         ownerUserID = nil
         importFailure = nil
         calendarState = .notDetermined
         pendingCalendarCandidates = []
+        briefingCalendarSyncStates = [:]
         didAttemptAutomaticCalendarRefresh = false
         lastCalendarScanAt = nil
         state = .idle

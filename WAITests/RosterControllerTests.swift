@@ -294,6 +294,36 @@ struct WAIRosterControllerTests {
         #expect(store.saveCount == 0)
     }
 
+    @Test func briefingFlightTimeSyncPublishesCalendarResult() async {
+        let store = StubRosterArchiveStore()
+        let calendarSource = StubRosterCalendarSource()
+        calendarSource.briefingSyncResult = .synced(
+            calendarTitle: "Google Roster"
+        )
+        let controller = makeController(
+            store: store,
+            calendarSource: calendarSource
+        )
+        controller.prepare(for: ownerID)
+        let (duty, leg) = briefingDuty()
+
+        await controller.syncBriefingToCalendar(
+            duty: duty,
+            leg: leg,
+            plannedFlightMinutes: 185
+        )
+
+        #expect(calendarSource.briefingLegIDs == [leg.id])
+        #expect(calendarSource.briefingPlannedMinutes == [185])
+        #expect(
+            controller.briefingCalendarSyncState(for: leg.id)
+                == .synced(calendarTitle: "Google Roster")
+        )
+
+        controller.reset()
+        #expect(controller.briefingCalendarSyncState(for: leg.id) == nil)
+    }
+
     private func makeController(
         store: StubRosterArchiveStore
     ) -> WAIRosterController {
@@ -329,6 +359,55 @@ struct WAIRosterControllerTests {
             return nil
         }
         return archive
+    }
+
+    private func briefingDuty() -> (RosterDuty, RosterLeg) {
+        let departure = importedAt.addingTimeInterval(3_600)
+        let arrival = departure.addingTimeInterval(10_800)
+        let leg = RosterLeg(
+            id: "briefing-leg-1",
+            flightNumber: "TP100",
+            departure: localDateTime(departure),
+            arrival: localDateTime(arrival),
+            originIATA: "LIS",
+            originName: nil,
+            destinationIATA: "CPH",
+            destinationName: nil,
+            aircraftRegistration: nil,
+            aircraftName: nil,
+            passengerLoad: nil,
+            cosmicRadiation: nil,
+            crew: []
+        )
+        let duty = RosterDuty(
+            id: "briefing-duty-1",
+            activityCode: "1CPH",
+            start: importedAt,
+            end: arrival.addingTimeInterval(1_800),
+            timeZoneIdentifier: "Europe/Lisbon",
+            kind: .flight,
+            hotelCode: nil,
+            legs: [leg]
+        )
+        return (duty, leg)
+    }
+
+    private func localDateTime(_ date: Date) -> RosterLocalDateTime {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Lisbon")!
+        let components = calendar.dateComponents(
+            [.year, .month, .day, .hour, .minute],
+            from: date
+        )
+        return RosterLocalDateTime(
+            year: components.year!,
+            month: components.month!,
+            day: components.day!,
+            hour: components.hour!,
+            minute: components.minute!,
+            timeZoneIdentifier: "Europe/Lisbon",
+            instant: date
+        )
     }
 
     private func calendarCandidate(
@@ -394,9 +473,14 @@ private final class StubRosterCalendarSource: WAIRosterCalendarSourcing {
     var foundCandidates: [WAIRosterCalendarCandidate] = []
     var requestError: Error?
     var candidatesError: Error?
+    var briefingSyncResult: WAIBriefingCalendarSyncResult =
+        .sourceEventNotFound
+    var briefingSyncError: Error?
     var shouldSuspendRequest = false
     private(set) var requestCount = 0
     private(set) var candidateReferenceDates: [Date] = []
+    private(set) var briefingLegIDs: [String] = []
+    private(set) var briefingPlannedMinutes: [Int?] = []
     private var requestContinuation:
         CheckedContinuation<WAIRosterCalendarAuthorization, Error>?
 
@@ -428,6 +512,19 @@ private final class StubRosterCalendarSource: WAIRosterCalendarSourcing {
             throw candidatesError
         }
         return foundCandidates
+    }
+
+    func syncBriefingEvent(
+        duty: RosterDuty,
+        leg: RosterLeg,
+        plannedFlightMinutes: Int?
+    ) throws -> WAIBriefingCalendarSyncResult {
+        briefingLegIDs.append(leg.id)
+        briefingPlannedMinutes.append(plannedFlightMinutes)
+        if let briefingSyncError {
+            throw briefingSyncError
+        }
+        return briefingSyncResult
     }
 }
 

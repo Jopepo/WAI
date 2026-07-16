@@ -9,6 +9,14 @@ enum WAIRosterCalendarAuthorization: Equatable, Sendable {
     case restricted
 }
 
+enum WAIBriefingCalendarSyncResult: Equatable, Sendable {
+    case synced(calendarTitle: String)
+    case removed(calendarTitle: String)
+    case notAuthorized
+    case sourceEventNotFound
+    case readOnly
+}
+
 struct WAIRosterCalendarPayload: Equatable, Sendable {
     let data: Data
     let sourceName: String
@@ -51,6 +59,21 @@ protocol WAIRosterCalendarSourcing: AnyObject {
 
     func requestFullAccess() async throws -> WAIRosterCalendarAuthorization
     func candidates(referenceDate: Date) throws -> [WAIRosterCalendarCandidate]
+    func syncBriefingEvent(
+        duty: RosterDuty,
+        leg: RosterLeg,
+        plannedFlightMinutes: Int?
+    ) throws -> WAIBriefingCalendarSyncResult
+}
+
+extension WAIRosterCalendarSourcing {
+    func syncBriefingEvent(
+        duty: RosterDuty,
+        leg: RosterLeg,
+        plannedFlightMinutes: Int?
+    ) throws -> WAIBriefingCalendarSyncResult {
+        .sourceEventNotFound
+    }
 }
 
 struct WAIRosterCalendarEventSnapshot: Equatable, Sendable {
@@ -411,6 +434,105 @@ final class EventKitRosterCalendarSource: WAIRosterCalendarSourcing {
             snapshots.append(snapshot)
         }
         return try TAPRosterCalendarBuilder.candidates(from: snapshots)
+    }
+
+    func syncBriefingEvent(
+        duty: RosterDuty,
+        leg: RosterLeg,
+        plannedFlightMinutes: Int?
+    ) throws -> WAIBriefingCalendarSyncResult {
+        guard authorization == .authorized else {
+            return .notAuthorized
+        }
+        guard let sourceEvent = sourceEvent(for: duty),
+              let calendar = sourceEvent.calendar else {
+            return .sourceEventNotFound
+        }
+        guard calendar.allowsContentModifications else {
+            return .readOnly
+        }
+        guard let departure = leg.departure.instant,
+              let markerURL = Self.briefingEventURL(for: leg.id) else {
+            return .sourceEventNotFound
+        }
+
+        let existing = briefingEvent(
+            markerURL: markerURL,
+            departure: departure,
+            calendar: calendar
+        )
+        guard let plannedFlightMinutes else {
+            if let existing {
+                try eventStore.remove(existing, span: .thisEvent, commit: true)
+            }
+            return .removed(calendarTitle: calendar.title)
+        }
+        guard (1...1_440).contains(plannedFlightMinutes) else {
+            return .sourceEventNotFound
+        }
+
+        let event = existing ?? EKEvent(eventStore: eventStore)
+        event.calendar = calendar
+        event.title = "WAI · \(leg.flightNumber) · \(leg.originIATA)-\(leg.destinationIATA)"
+        event.startDate = departure
+        event.endDate = departure.addingTimeInterval(
+            Double(plannedFlightMinutes * 60)
+        )
+        event.timeZone = leg.departure.timeZoneIdentifier
+            .flatMap(TimeZone.init(identifier:))
+        event.notes = "Flight time saved from the WAI briefing."
+        event.url = markerURL
+        try eventStore.save(event, span: .thisEvent, commit: true)
+        return .synced(calendarTitle: calendar.title)
+    }
+
+    static func briefingEventURL(for legID: String) -> URL? {
+        guard !legID.isEmpty else {
+            return nil
+        }
+        let digest = SHA256.hash(data: Data(legID.utf8))
+            .map { String(format: "%02x", $0) }
+            .joined()
+        return URL(string: "wai://briefing/\(digest)")
+    }
+
+    private func sourceEvent(for duty: RosterDuty) -> EKEvent? {
+        let predicate = eventStore.predicateForEvents(
+            withStart: duty.start.addingTimeInterval(-60),
+            end: duty.end.addingTimeInterval(60),
+            calendars: eventStore.calendars(for: .event)
+        )
+        return eventStore.events(matching: predicate).first { event in
+            guard let calendar = event.calendar,
+                  let title = event.title,
+                  let start = event.startDate,
+                  let end = event.endDate else {
+                return false
+            }
+            return Self.stableEventID(
+                calendarID: calendar.calendarIdentifier,
+                externalIdentifier: event.calendarItemExternalIdentifier,
+                eventIdentifier: event.eventIdentifier,
+                title: title,
+                start: start,
+                end: end
+            ) == duty.id
+        }
+    }
+
+    private func briefingEvent(
+        markerURL: URL,
+        departure: Date,
+        calendar: EKCalendar
+    ) -> EKEvent? {
+        let predicate = eventStore.predicateForEvents(
+            withStart: departure.addingTimeInterval(-86_400),
+            end: departure.addingTimeInterval(172_800),
+            calendars: [calendar]
+        )
+        return eventStore.events(matching: predicate).first {
+            $0.url == markerURL
+        }
     }
 
     private func snapshot(for event: EKEvent) -> WAIRosterCalendarEventSnapshot? {

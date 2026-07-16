@@ -231,7 +231,7 @@ final class WAIUITests: XCTestCase {
         let adjustHomeRoutine = app.descendants(matching: .any)[
             "wai3.homeRoutine.adjust"
         ]
-        XCTAssertTrue(adjustHomeRoutine.waitForExistence(timeout: 2))
+        scrollUntilAccessible(adjustHomeRoutine, in: app)
         adjustHomeRoutine.tap()
         XCTAssertTrue(
             app.navigationBars["Adjust home departure"]
@@ -252,7 +252,7 @@ final class WAIUITests: XCTestCase {
         let editBriefing = app.descendants(matching: .any)[
             "wai3.briefing.edit.fixture-outbound-leg"
         ]
-        scrollUntilAccessible(editBriefing, in: app)
+        scrollToEarlierContentUntilAccessible(editBriefing, in: app)
         editBriefing.tap()
 
         XCTAssertTrue(
@@ -266,6 +266,19 @@ final class WAIUITests: XCTestCase {
             String(repeating: XCUIKeyboardKey.delete.rawValue, count: 3)
                 + "166"
         )
+        let returnKey = app.keyboards.buttons["Return"]
+        if returnKey.waitForExistence(timeout: 1) {
+            returnKey.tap()
+        }
+
+        let customFlightTime = app.switches[
+            "wai3.briefing.customFlightTime"
+        ]
+        scrollUntilAccessible(customFlightTime, in: app)
+        customFlightTime.coordinate(
+            withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)
+        ).tap()
+        XCTAssertEqual(customFlightTime.value as? String, "1")
 
         let password = app.descendants(matching: .any)[
             "wai3.briefing.password"
@@ -285,6 +298,10 @@ final class WAIUITests: XCTestCase {
         ]
         XCTAssertTrue(passwordStatus.waitForExistence(timeout: 2))
         XCTAssertTrue(passwordStatus.label.contains("Saved"))
+        XCTAssertTrue(
+            app.descendants(matching: .any)["wai3.briefing.calendarSynced"]
+                .waitForExistence(timeout: 2)
+        )
         XCTAssertFalse(app.staticTexts["7421"].exists)
     }
 
@@ -340,7 +357,9 @@ final class WAIUITests: XCTestCase {
         in app: XCUIApplication,
         attempts: Int = 8
     ) {
-        for _ in 0..<attempts where !element.isHittable {
+        for _ in 0..<attempts
+        where !element.isHittable
+            || element.frame.minY < app.frame.minY + 120 {
             app.swipeDown()
         }
         XCTAssertTrue(element.waitForExistence(timeout: 2))
