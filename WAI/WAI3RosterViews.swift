@@ -43,7 +43,11 @@ struct WAI3CrewWorkspaceView: View {
                 Label("Roster", systemImage: "calendar")
             }
 
-            WAI3RosterAnalysisView(rosterController: rosterController)
+            WAI3RosterAnalysisView(
+                rosterController: rosterController,
+                refreshCalendarAction: connectCalendar,
+                importRosterAction: { showingFileImporter = true }
+            )
                 .tabItem {
                     Label("Analysis", systemImage: "chart.bar.xaxis")
                 }
@@ -417,6 +421,8 @@ struct WAI3CrewWorkspaceView: View {
 
 private struct WAI3RosterAnalysisView: View {
     @ObservedObject var rosterController: WAIRosterController
+    let refreshCalendarAction: () -> Void
+    let importRosterAction: () -> Void
 
     var body: some View {
         NavigationStack {
@@ -455,8 +461,22 @@ private struct WAI3RosterAnalysisView: View {
                     archive.duties
                 ).map { ($0.dutyID, $0) }
             )
+            let attention = RosterPeriodAnalyzer.attention(
+                duties: archive.duties,
+                issues: archive.issues
+            )
+            let dutiesByID = Dictionary(
+                uniqueKeysWithValues: archive.duties.map { ($0.id, $0) }
+            )
 
             List {
+                if !attention.isEmpty {
+                    attentionSection(
+                        attention,
+                        dutiesByID: dutiesByID
+                    )
+                }
+
                 Section("Flight activity") {
                     LabeledContent(
                         "Rotations",
@@ -475,13 +495,6 @@ private struct WAI3RosterAnalysisView: View {
                             summary.resolvedBlockMinutes
                         )
                     )
-                    if summary.unresolvedLegCount > 0 {
-                        Label(
-                            "\(summary.unresolvedLegCount) leg times need verification",
-                            systemImage: "exclamationmark.triangle"
-                        )
-                        .foregroundStyle(.orange)
-                    }
                 }
 
                 Section("Intervals") {
@@ -494,13 +507,6 @@ private struct WAI3RosterAnalysisView: View {
                             "Shortest",
                             value: WAI3RosterFormatting.duration(shortest)
                         )
-                    }
-                    if summary.overlapCount > 0 {
-                        Label(
-                            "\(summary.overlapCount) overlapping roster events",
-                            systemImage: "exclamationmark.triangle"
-                        )
-                        .foregroundStyle(.orange)
                     }
                     if summary.activityReviewIntervalCount > 0 {
                         Label(
@@ -535,6 +541,12 @@ private struct WAI3RosterAnalysisView: View {
                                     "Flight periods",
                                     value: "\(analysis.flightPeriods.count)"
                                 )
+                                if analysis.unresolvedLegCount > 0 {
+                                    LabeledContent(
+                                        "Legs to verify",
+                                        value: "\(analysis.unresolvedLegCount)"
+                                    )
+                                }
                                 intervalRow(analysis.intervalBefore)
                             } label: {
                                 VStack(alignment: .leading, spacing: 3) {
@@ -555,6 +567,130 @@ private struct WAI3RosterAnalysisView: View {
             }
             .listStyle(.insetGrouped)
         }
+    }
+
+    private func attentionSection(
+        _ attention: RosterAnalysisAttention,
+        dutiesByID: [String: RosterDuty]
+    ) -> some View {
+        Section("Needs attention") {
+            if !attention.legVerifications.isEmpty {
+                DisclosureGroup {
+                    ForEach(attention.legVerifications) { item in
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(
+                                "\(item.flightNumber) · \(item.originIATA) - \(item.destinationIATA)"
+                            )
+                            .fontWeight(.semibold)
+                            Text(
+                                "\(WAI3RosterFormatting.localDateTime(item.departure)) - \(WAI3RosterFormatting.localDateTime(item.arrival))"
+                            )
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            if !item.unresolvedStationIATAs.isEmpty {
+                                Label(
+                                    "Time zone unavailable: \(item.unresolvedStationIATAs.joined(separator: ", "))",
+                                    systemImage: "clock.badge.exclamationmark"
+                                )
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                        .accessibilityElement(children: .combine)
+                    }
+
+                    Text(
+                        "Confirm these local times in Portal DOV before relying on block or rest figures."
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                } label: {
+                    Label(
+                        verificationLabel(
+                            count: attention.legVerifications.count
+                        ),
+                        systemImage: "clock.badge.exclamationmark"
+                    )
+                    .foregroundStyle(.orange)
+                }
+                .accessibilityIdentifier("wai3.analysis.legVerification")
+            }
+
+            if !attention.overlapConflicts.isEmpty {
+                DisclosureGroup {
+                    ForEach(attention.overlapConflicts) { conflict in
+                        if let previous = dutiesByID[conflict.previousDutyID],
+                           let current = dutiesByID[conflict.currentDutyID] {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(
+                                    "\(current.activityCode) overlaps \(previous.activityCode)"
+                                )
+                                .fontWeight(.semibold)
+                                conflictDutyRow("Earlier", duty: previous)
+                                conflictDutyRow("Later", duty: current)
+                                Text(
+                                    "The later event starts \(WAI3RosterFormatting.duration(conflict.minutes)) before the earlier event ends."
+                                )
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+
+                    Text(
+                        "Correct the duplicate or stale event in the source roster, then check Calendar again or import an updated iCal."
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                    Button(action: refreshCalendarAction) {
+                        Label("Check Calendar Again", systemImage: "arrow.clockwise")
+                    }
+                    Button(action: importRosterAction) {
+                        Label(
+                            "Import Updated iCal",
+                            systemImage: "square.and.arrow.down"
+                        )
+                    }
+                } label: {
+                    Label(
+                        overlapLabel(count: attention.overlapConflicts.count),
+                        systemImage: "rectangle.on.rectangle.badge.exclamationmark"
+                    )
+                    .foregroundStyle(.orange)
+                }
+                .accessibilityIdentifier("wai3.analysis.overlapConflict")
+            }
+        }
+    }
+
+    private func conflictDutyRow(
+        _ label: String,
+        duty: RosterDuty
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("\(label): \(duty.activityCode) · \(rotationRoute(duty))")
+                .font(.caption)
+            Text(
+                "\(WAI3RosterFormatting.dutyStart(duty)) - \(WAI3RosterFormatting.dutyEnd(duty))"
+            )
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+        }
+    }
+
+    private func verificationLabel(count: Int) -> String {
+        count == 1
+            ? "1 leg needs verification"
+            : "\(count) legs need verification"
+    }
+
+    private func overlapLabel(count: Int) -> String {
+        count == 1
+            ? "1 roster overlap"
+            : "\(count) roster overlaps"
     }
 
     @ViewBuilder

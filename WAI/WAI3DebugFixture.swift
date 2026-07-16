@@ -64,6 +64,10 @@ final class WAI3DebugFixtureRuntime {
         let inboundDeparture = now.addingTimeInterval(6 * 3_600)
         let inboundArrival = now.addingTimeInterval(9 * 3_600)
         let inboundDutyEnd = now.addingTimeInterval(9.5 * 3_600)
+        let reviewDutyStart = now.addingTimeInterval(9 * 3_600)
+        let reviewDeparture = now.addingTimeInterval(10 * 3_600)
+        let reviewArrival = now.addingTimeInterval(11.5 * 3_600)
+        let reviewDutyEnd = now.addingTimeInterval(12 * 3_600)
 
         let outboundLeg = RosterLeg(
             id: "fixture-outbound-leg",
@@ -107,6 +111,27 @@ final class WAI3DebugFixtureRuntime {
             cosmicRadiation: 1.1,
             crew: fixtureCrew
         )
+        let reviewLeg = RosterLeg(
+            id: "fixture-review-leg",
+            flightNumber: "TP0999",
+            departure: localDateTime(
+                reviewDeparture,
+                timeZoneIdentifier: "Europe/Lisbon"
+            ),
+            arrival: unresolvedLocalDateTime(
+                reviewArrival,
+                displayTimeZoneIdentifier: "Europe/Moscow"
+            ),
+            originIATA: "LIS",
+            originName: "Lisbon",
+            destinationIATA: "DME",
+            destinationName: "Moscow",
+            aircraftRegistration: nil,
+            aircraftName: nil,
+            passengerLoad: nil,
+            cosmicRadiation: nil,
+            crew: fixtureCrew
+        )
         let outboundDuty = RosterDuty(
             id: "fixture-outbound-duty",
             activityCode: "2CPH1501P",
@@ -127,6 +152,16 @@ final class WAI3DebugFixtureRuntime {
             hotelCode: nil,
             legs: [inboundLeg]
         )
+        let reviewDuty = RosterDuty(
+            id: "fixture-review-duty",
+            activityCode: "LISDME",
+            start: reviewDutyStart,
+            end: reviewDutyEnd,
+            timeZoneIdentifier: "Europe/Lisbon",
+            kind: .flight,
+            hotelCode: nil,
+            legs: [reviewLeg]
+        )
         let document = RosterDocument(
             source: RosterSource(
                 company: .tap,
@@ -142,10 +177,22 @@ final class WAI3DebugFixtureRuntime {
                 end: now.addingTimeInterval(48 * 3_600),
                 timeZoneIdentifier: "Europe/Lisbon"
             ),
-            duties: [outboundDuty, inboundDuty]
+            duties: [outboundDuty, inboundDuty, reviewDuty]
         )
         return RosterArchive(
-            segments: [RosterImportSegment(document: document, issues: [])]
+            segments: [
+                RosterImportSegment(
+                    document: document,
+                    issues: [
+                        RosterImportIssue(
+                            code: .unresolvedStationTimeZone,
+                            dutyID: reviewDuty.id,
+                            flightNumber: reviewLeg.flightNumber,
+                            stationIATA: "DME"
+                        )
+                    ]
+                )
+            ]
         )
     }
 
@@ -249,6 +296,29 @@ final class WAI3DebugFixtureRuntime {
             minute: components.minute ?? 0,
             timeZoneIdentifier: timeZoneIdentifier,
             instant: calendar.date(from: components)
+        )
+    }
+
+    private static func unresolvedLocalDateTime(
+        _ date: Date,
+        displayTimeZoneIdentifier: String
+    ) -> RosterLocalDateTime {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(
+            identifier: displayTimeZoneIdentifier
+        ) ?? .gmt
+        let components = calendar.dateComponents(
+            [.year, .month, .day, .hour, .minute],
+            from: date
+        )
+        return RosterLocalDateTime(
+            year: components.year ?? 1970,
+            month: components.month ?? 1,
+            day: components.day ?? 1,
+            hour: components.hour ?? 0,
+            minute: components.minute ?? 0,
+            timeZoneIdentifier: nil,
+            instant: nil
         )
     }
 

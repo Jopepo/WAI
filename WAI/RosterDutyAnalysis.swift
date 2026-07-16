@@ -66,6 +66,40 @@ struct RosterPeriodSummary: Equatable, Sendable {
     let activityReviewIntervalCount: Int
 }
 
+struct RosterLegVerification: Equatable, Sendable, Identifiable {
+    let dutyID: String
+    let legID: String
+    let flightNumber: String
+    let originIATA: String
+    let destinationIATA: String
+    let departure: RosterLocalDateTime
+    let arrival: RosterLocalDateTime
+    let unresolvedStationIATAs: [String]
+
+    var id: String {
+        "\(dutyID)|\(legID)"
+    }
+}
+
+struct RosterOverlapConflict: Equatable, Sendable, Identifiable {
+    let previousDutyID: String
+    let currentDutyID: String
+    let minutes: Int
+
+    var id: String {
+        "\(previousDutyID)|\(currentDutyID)"
+    }
+}
+
+struct RosterAnalysisAttention: Equatable, Sendable {
+    let legVerifications: [RosterLegVerification]
+    let overlapConflicts: [RosterOverlapConflict]
+
+    var isEmpty: Bool {
+        legVerifications.isEmpty && overlapConflicts.isEmpty
+    }
+}
+
 struct RosterPeriodAnalyzer {
     static func summarize(_ duties: [RosterDuty]) -> RosterPeriodSummary {
         let analyses = RosterDutyAnalyzer.analyze(duties)
@@ -96,6 +130,74 @@ struct RosterPeriodAnalyzer {
             activityReviewIntervalCount: analyses.filter {
                 $0.intervalBefore == .interruptedByActivity
             }.count
+        )
+    }
+
+    static func attention(
+        duties: [RosterDuty],
+        issues: [RosterImportIssue]
+    ) -> RosterAnalysisAttention {
+        let orderedDuties = duties.sorted {
+            $0.start == $1.start ? $0.id < $1.id : $0.start < $1.start
+        }
+        let analyses = Dictionary(
+            uniqueKeysWithValues: RosterDutyAnalyzer.analyze(orderedDuties)
+                .map { ($0.dutyID, $0) }
+        )
+
+        let legVerifications = orderedDuties.flatMap { duty in
+            guard let analysis = analyses[duty.id] else {
+                return [RosterLegVerification]()
+            }
+            return duty.legs.compactMap { leg in
+                guard analysis.analysis(for: leg.id)?.blockMinutes == nil else {
+                    return nil
+                }
+
+                var stations = Set(
+                    issues.lazy.filter {
+                        $0.dutyID == duty.id
+                        && $0.flightNumber == leg.flightNumber
+                    }.map(\.stationIATA)
+                )
+                if leg.departure.instant == nil {
+                    stations.insert(leg.originIATA)
+                }
+                if leg.arrival.instant == nil {
+                    stations.insert(leg.destinationIATA)
+                }
+
+                return RosterLegVerification(
+                    dutyID: duty.id,
+                    legID: leg.id,
+                    flightNumber: leg.flightNumber,
+                    originIATA: leg.originIATA,
+                    destinationIATA: leg.destinationIATA,
+                    departure: leg.departure,
+                    arrival: leg.arrival,
+                    unresolvedStationIATAs: stations.sorted()
+                )
+            }
+        }
+
+        let flightDuties = orderedDuties.filter { $0.kind == .flight }
+        let overlapConflicts = flightDuties.indices.dropFirst().compactMap {
+            index -> RosterOverlapConflict? in
+            let current = flightDuties[index]
+            guard let analysis = analyses[current.id],
+                  case .overlap(let minutes) = analysis.intervalBefore else {
+                return nil
+            }
+            return RosterOverlapConflict(
+                previousDutyID: flightDuties[index - 1].id,
+                currentDutyID: current.id,
+                minutes: minutes
+            )
+        }
+
+        return RosterAnalysisAttention(
+            legVerifications: legVerifications,
+            overlapConflicts: overlapConflicts
         )
     }
 }

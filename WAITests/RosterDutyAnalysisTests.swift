@@ -83,6 +83,25 @@ struct RosterDutyAnalysisTests {
 
         #expect(analysis.legs.first?.blockMinutes == nil)
         #expect(analysis.unresolvedLegCount == 1)
+
+        let attention = RosterPeriodAnalyzer.attention(
+            duties: [item],
+            issues: [
+                RosterImportIssue(
+                    code: .unresolvedStationTimeZone,
+                    dutyID: "unresolved",
+                    flightNumber: "TP100",
+                    stationIATA: "OXB"
+                )
+            ]
+        )
+        let verification = try #require(attention.legVerifications.first)
+        #expect(attention.legVerifications.count == 1)
+        #expect(verification.dutyID == "unresolved")
+        #expect(verification.legID == "unknown-leg")
+        #expect(verification.originIATA == "LIS")
+        #expect(verification.destinationIATA == "OXB")
+        #expect(verification.unresolvedStationIATAs == ["LIS", "OXB"])
     }
 
     @Test func overlappingFlightEventsAreFlaggedAsDataConflict() throws {
@@ -104,6 +123,20 @@ struct RosterDutyAnalysisTests {
         )
 
         #expect(analysis.intervalBefore == .overlap(minutes: 30))
+
+        let attention = RosterPeriodAnalyzer.attention(
+            duties: [first, second],
+            issues: []
+        )
+        #expect(
+            attention.overlapConflicts == [
+                RosterOverlapConflict(
+                    previousDutyID: "first",
+                    currentDutyID: "second",
+                    minutes: 30
+                )
+            ]
+        )
     }
 
     @Test func knownDaysOffDoNotHideMeasuredFlightInterval() throws {

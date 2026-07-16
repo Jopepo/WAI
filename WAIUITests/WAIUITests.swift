@@ -113,6 +113,36 @@ final class WAIUITests: XCTestCase {
             ).firstMatch.exists
         )
 
+        let legVerification = app.descendants(matching: .any)[
+            "wai3.analysis.legVerification"
+        ]
+        scrollUntilAccessible(legVerification, in: app)
+        XCTAssertTrue(legVerification.isHittable)
+        legVerification.tap()
+        XCTAssertTrue(
+            app.staticTexts.matching(
+                NSPredicate(format: "label CONTAINS %@", "TP0999")
+            ).firstMatch.waitForExistence(timeout: 2)
+        )
+        XCTAssertTrue(
+            app.staticTexts.matching(
+                NSPredicate(format: "label CONTAINS %@", "DME")
+            ).firstMatch.exists
+        )
+
+        let overlapConflict = app.descendants(matching: .any)[
+            "wai3.analysis.overlapConflict"
+        ]
+        scrollUntilAccessible(overlapConflict, in: app)
+        XCTAssertTrue(overlapConflict.isHittable)
+        overlapConflict.tap()
+        XCTAssertTrue(
+            app.staticTexts["LISDME overlaps CPHLIS"]
+                .waitForExistence(timeout: 2)
+        )
+        XCTAssertTrue(app.buttons["Check Calendar Again"].exists)
+        XCTAssertTrue(app.buttons["Import Updated iCal"].exists)
+
         app.tabBars.buttons["Calculator"].tap()
         XCTAssertTrue(
             app.staticTexts["Wakeup/Pickup Calculator"]
