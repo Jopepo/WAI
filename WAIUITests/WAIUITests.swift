@@ -196,6 +196,28 @@ final class WAIUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Done"].isHittable)
         assertHorizontallyContained(dutyNavigation, in: app)
         attachScreenshot(named: "WAI 3 dark accessibility duty")
+
+        let editBriefing = app.descendants(matching: .any)[
+            "wai3.briefing.edit.fixture-outbound-leg"
+        ]
+        scrollToEarlierContentUntilAccessible(editBriefing, in: app)
+        editBriefing.tap()
+        XCTAssertTrue(
+            app.navigationBars["TP0754 briefing"]
+                .waitForExistence(timeout: 3)
+        )
+        let briefingTime = app.buttons["Briefing"]
+        scrollUntilAccessible(briefingTime, in: app)
+        briefingTime.tap()
+        let hours = app.textFields["wai3.briefing.flightHours"]
+        let minutes = app.textFields["wai3.briefing.flightMinutes"]
+        XCTAssertTrue(hours.waitForExistence(timeout: 2))
+        XCTAssertTrue(minutes.exists)
+        assertHorizontallyContained(hours, in: app)
+        assertHorizontallyContained(minutes, in: app)
+        attachScreenshot(named: "WAI 3 dark accessibility briefing")
+        app.navigationBars["TP0754 briefing"].buttons.firstMatch.tap()
+
         app.buttons["Done"].tap()
 
         app.tabBars.buttons["Calculator"].tap()
@@ -277,14 +299,20 @@ final class WAIUITests: XCTestCase {
             returnKey.tap()
         }
 
-        let customFlightTime = app.switches[
-            "wai3.briefing.customFlightTime"
-        ]
-        scrollUntilAccessible(customFlightTime, in: app)
-        customFlightTime.coordinate(
-            withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)
-        ).tap()
-        XCTAssertEqual(customFlightTime.value as? String, "1")
+        let briefingTime = app.buttons["Briefing"]
+        scrollUntilAccessible(briefingTime, in: app)
+        briefingTime.tap()
+
+        let hours = app.textFields["wai3.briefing.flightHours"]
+        XCTAssertTrue(hours.waitForExistence(timeout: 2))
+        hours.tap()
+        hours.typeText("4")
+        let minutes = app.textFields["wai3.briefing.flightMinutes"]
+        minutes.tap()
+        minutes.typeText("25")
+        app.buttons["wai3.briefing.flightTimeKeyboardDone"].tap()
+        XCTAssertEqual(hours.value as? String, "4")
+        XCTAssertEqual(minutes.value as? String, "25")
 
         let password = app.descendants(matching: .any)[
             "wai3.briefing.password"

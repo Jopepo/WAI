@@ -2133,11 +2133,17 @@ private struct WAI3LegBriefingEditView: View {
 
     @State private var passengerLoad = ""
     @State private var usesCustomFlightTime = false
-    @State private var flightHours = 0
-    @State private var flightMinutes = 0
+    @State private var flightHours = "0"
+    @State private var flightMinutes = "00"
     @State private var commanderPassword = ""
     @State private var showsPassword = false
     @State private var isSaving = false
+    @FocusState private var focusedTimeField: FlightTimeField?
+
+    private enum FlightTimeField {
+        case hours
+        case minutes
+    }
 
     var body: some View {
         Form {
@@ -2157,39 +2163,98 @@ private struct WAI3LegBriefingEditView: View {
             }
 
             Section("Flight time") {
-                Toggle("Custom flight time", isOn: $usesCustomFlightTime)
-                    .accessibilityIdentifier("wai3.briefing.customFlightTime")
+                LabeledContent(
+                    "Roster time",
+                    value: rosterBlockMinutes.map(
+                        WAI3RosterFormatting.duration
+                    ) ?? "Not available"
+                )
+
+                Picker(
+                    "Flight time source",
+                    selection: $usesCustomFlightTime
+                ) {
+                    Text("Roster").tag(false)
+                    Text("Briefing").tag(true)
+                }
+                .pickerStyle(.segmented)
+                .accessibilityIdentifier("wai3.briefing.flightTimeMode")
                     .onChange(of: usesCustomFlightTime) {
                         if usesCustomFlightTime,
-                           flightHours == 0,
-                           flightMinutes == 0 {
+                           customFlightMinutes == nil {
                             applyFlightMinutes(rosterBlockMinutes ?? 60)
                         }
                     }
 
                 if usesCustomFlightTime {
-                    Stepper(
-                        "Hours: \(flightHours)",
-                        value: $flightHours,
-                        in: 0...24
-                    )
+                    HStack(alignment: .bottom, spacing: 10) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Hours")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            TextField("0", text: $flightHours)
+                                .font(.title2.monospacedDigit())
+                                .foregroundStyle(.primary)
+                                .focused($focusedTimeField, equals: .hours)
+                                .accessibilityLabel("Flight time hours")
+                                .accessibilityIdentifier(
+                                    "wai3.briefing.flightHours"
+                                )
+                                .frame(minHeight: 44)
+                        }
+                        .frame(maxWidth: .infinity)
+
+                        Text(":")
+                            .font(.title2.monospacedDigit())
+                            .padding(.bottom, 8)
+                            .accessibilityHidden(true)
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Minutes")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            TextField("00", text: $flightMinutes)
+                                .font(.title2.monospacedDigit())
+                                .foregroundStyle(.primary)
+                                .focused($focusedTimeField, equals: .minutes)
+                                .accessibilityLabel("Flight time minutes")
+                                .accessibilityIdentifier(
+                                    "wai3.briefing.flightMinutes"
+                                )
+                                .frame(minHeight: 44)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .textFieldStyle(.roundedBorder)
+                    .multilineTextAlignment(.center)
+                    .keyboardType(.numberPad)
                     .onChange(of: flightHours) {
-                        if flightHours == 24 {
-                            flightMinutes = 0
+                        flightHours = WAI3FlightDurationInput
+                            .sanitizedComponent(flightHours)
+                    }
+                    .onChange(of: flightMinutes) {
+                        flightMinutes = WAI3FlightDurationInput
+                            .sanitizedComponent(flightMinutes)
+                    }
+                    .onChange(of: focusedTimeField) {
+                        switch focusedTimeField {
+                        case .hours:
+                            flightHours = ""
+                        case .minutes:
+                            flightMinutes = ""
+                        case nil:
+                            break
                         }
                     }
-                    Stepper(
-                        "Minutes: \(flightMinutes)",
-                        value: $flightMinutes,
-                        in: 0...(flightHours == 24 ? 0 : 59)
-                    )
-                } else if let rosterBlockMinutes {
-                    LabeledContent(
-                        "Roster block",
-                        value: WAI3RosterFormatting.duration(
-                            rosterBlockMinutes
+
+                    if customFlightMinutes == nil {
+                        Label(
+                            "Enter a duration from 1 minute to 24 hours.",
+                            systemImage: "exclamationmark.circle"
                         )
-                    )
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                    }
                 }
             }
 
@@ -2251,9 +2316,6 @@ private struct WAI3LegBriefingEditView: View {
         .navigationTitle("\(leg.flightNumber) briefing")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Cancel") { dismiss() }
-            }
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") {
                     Task {
@@ -2262,7 +2324,19 @@ private struct WAI3LegBriefingEditView: View {
                 }
                 .disabled(!canSave || isSaving)
             }
+            ToolbarItemGroup(placement: .keyboard) {
+                if focusedTimeField != nil {
+                    Spacer()
+                    Button("Done") {
+                        focusedTimeField = nil
+                    }
+                    .accessibilityIdentifier(
+                        "wai3.briefing.flightTimeKeyboardDone"
+                    )
+                }
+            }
         }
+        .scrollDismissesKeyboard(.interactively)
         .onAppear(perform: load)
         .alert(
             "Briefing not saved",
@@ -2280,12 +2354,15 @@ private struct WAI3LegBriefingEditView: View {
         controller.state == .ready
         && (
             !usesCustomFlightTime
-                || (1...1_440).contains(customFlightMinutes)
+                || customFlightMinutes != nil
         )
     }
 
-    private var customFlightMinutes: Int {
-        flightHours * 60 + flightMinutes
+    private var customFlightMinutes: Int? {
+        WAI3FlightDurationInput.totalMinutes(
+            hours: flightHours,
+            minutes: flightMinutes
+        )
     }
 
     private var saveFailureBinding: Binding<Bool> {
@@ -2315,8 +2392,11 @@ private struct WAI3LegBriefingEditView: View {
     }
 
     private func applyFlightMinutes(_ totalMinutes: Int) {
-        flightHours = min(totalMinutes / 60, 24)
-        flightMinutes = totalMinutes % 60
+        let components = WAI3FlightDurationInput.components(
+            totalMinutes: totalMinutes
+        )
+        flightHours = components.hours
+        flightMinutes = components.minutes
     }
 
     private func save() async {
