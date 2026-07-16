@@ -40,3 +40,4 @@ WAI 3 is documented separately while it is unreleased.
 - [Release checklist](wai3-release-checklist.md)
 - [Privacy data map](wai3-privacy-data-map.md)
 - [Privacy policy draft](wai3-privacy-policy-draft.md)
+- [Internal testing privacy notice](wai3-internal-testing-privacy-notice.md)

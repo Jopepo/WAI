@@ -41,8 +41,8 @@ item below is complete.
 - [x] App clients cannot approve, revoke, publish, upload, or mutate profiles.
 - [x] Revocation clears protected local state after the server confirms it.
 - [x] Offline access expires after seven days and fails closed on invalid state.
-- [ ] Create a dedicated EU staging Supabase project.
-- [ ] Configure the real Sign in with Apple provider for staging.
+- [x] Create a dedicated EU staging Supabase project.
+- [x] Configure the real Sign in with Apple provider for staging.
 - [ ] Test first sign-in, repeat sign-in, Apple private relay email, cancellation,
   expired session, global sign-out, and revoked Apple credential on real devices.
 - [ ] Decide and test the App Review access path without exposing operational
@@ -65,9 +65,8 @@ item below is complete.
   tests pass without contacting a backend.
 - [ ] Deploy the schema only to staging and execute adversarial RLS tests using
   anonymous, pending, approved, revoked, and service-role clients.
-- [ ] Execute the migration against real PostgreSQL and type-check/run the Edge
-  Function in its Deno runtime. The current local environment has no `psql`,
-  Supabase CLI, or Deno installation, so static checks are not sufficient for
+- [ ] The migrations have been executed and inspected on staging PostgreSQL.
+  Type-check and run the Edge Function in its Deno runtime before completing
   this release gate.
 - [ ] Publish a staging release from the current REV73/REV51 source documents.
 - [ ] Test a valid update, interrupted download, invalid hash, invalid schema,
