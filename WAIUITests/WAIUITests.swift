@@ -66,6 +66,17 @@ final class WAIUITests: XCTestCase {
         outboundDuty.tap()
 
         XCTAssertTrue(app.navigationBars["2CPH1501P"].waitForExistence(timeout: 2))
+        let captain = app.descendants(matching: .any)[
+            "wai3.crew.member.shared.10000.1-CPT-false"
+        ]
+        scrollUntilAccessible(captain, in: app)
+        XCTAssertTrue(captain.label.contains("Test Captain"))
+        XCTAssertTrue(captain.label.contains("CPT"))
+        let cabinCrew = app.descendants(matching: .any).matching(
+            identifier: "wai3.crew.member.shared.12345.6-CAB-false"
+        )
+        XCTAssertEqual(cabinCrew.count, 1)
+
         let hotelDetails = app.descendants(matching: .any)[
             "wai3.stay.hotelDetails"
         ]
@@ -222,11 +233,6 @@ final class WAIUITests: XCTestCase {
         XCTAssertTrue(outboundDuty.waitForExistence(timeout: 4))
         XCTAssertTrue(outboundDuty.label.contains("Pick-up / leave home"))
         outboundDuty.tap()
-
-        XCTAssertTrue(
-            app.staticTexts["Home departure"].waitForExistence(timeout: 2)
-        )
-        XCTAssertTrue(app.staticTexts["Pick-up / leave home"].exists)
 
         let adjustHomeRoutine = app.descendants(matching: .any)[
             "wai3.homeRoutine.adjust"

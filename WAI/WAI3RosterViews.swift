@@ -1332,6 +1332,8 @@ private struct WAI3DutyDetailView: View {
 
                 briefingSection
 
+                crewSection
+
                 homeDepartureSection
 
                 if let analysis, !analysis.flightPeriods.isEmpty {
@@ -1512,25 +1514,6 @@ private struct WAI3DutyDetailView: View {
                             )
                         }
 
-                        if !leg.crew.isEmpty {
-                            DisclosureGroup("Crew") {
-                                ForEach(leg.crew) { member in
-                                    HStack(alignment: .firstTextBaseline) {
-                                        Text(member.roleCode)
-                                            .font(.caption.monospaced())
-                                            .foregroundStyle(.secondary)
-                                            .frame(width: 42, alignment: .leading)
-                                        Text(member.name)
-                                        Spacer()
-                                        if member.isDeadhead {
-                                            Text("DHC")
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                    }
-                                }
-                            }
-                        }
                     }
                 }
             }
@@ -1710,6 +1693,62 @@ private struct WAI3DutyDetailView: View {
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private var crewSection: some View {
+        switch WAI3CrewPresentation.resolve(
+            crews: duty.legs.map(\.crew)
+        ) {
+        case .unavailable:
+            EmptyView()
+        case .shared(let crew):
+            Section("Crew") {
+                ForEach(crew) { member in
+                    crewMemberRow(member, scope: "shared")
+                }
+            }
+        case .perLeg:
+            ForEach(duty.legs) { leg in
+                Section(
+                    "Crew · \(leg.flightNumber)  \(leg.originIATA) - \(leg.destinationIATA)"
+                ) {
+                    if leg.crew.isEmpty {
+                        Text("Crew not available")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(leg.crew) { member in
+                            crewMemberRow(member, scope: leg.id)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func crewMemberRow(
+        _ member: RosterCrewMember,
+        scope: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(member.name)
+                .fontWeight(.medium)
+            HStack(spacing: 10) {
+                Text(member.roleCode)
+                    .font(.caption.monospaced())
+                Text(member.employeeIdentifier)
+                    .font(.caption.monospacedDigit())
+                if member.isDeadhead {
+                    Text("DHC")
+                        .font(.caption)
+                }
+            }
+            .foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier(
+            "wai3.crew.member.\(scope).\(member.id)"
+        )
     }
 
     @ViewBuilder
