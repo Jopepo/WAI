@@ -96,8 +96,12 @@ struct WAI3CrewWorkspaceView: View {
                 duty: selection.duty,
                 stay: selection.stay,
                 analysis: selection.analysis,
+                hotel: selection.stay.flatMap {
+                    hotelDataService.hotel(for: $0.stationIATA)
+                },
                 roomNumberController: roomNumberController,
-                personalizationController: personalizationController
+                personalizationController: personalizationController,
+                hotelStayStore: hotelStayStore
             )
         }
         .sheet(isPresented: $showingHomeRoutineSettings) {
@@ -1248,9 +1252,13 @@ private struct WAI3DutyDetailView: View {
     let duty: RosterDuty
     let stay: RosterStay?
     let analysis: RosterDutyAnalysis?
+    let hotel: Hotel?
     @ObservedObject var roomNumberController: WAIRoomNumberController
     @ObservedObject var personalizationController:
         WAIRosterPersonalizationController
+    @ObservedObject var hotelStayStore: HotelStayStore
+
+    @State private var selectedHotel: Hotel?
 
     var body: some View {
         NavigationStack {
@@ -1382,10 +1390,36 @@ private struct WAI3DutyDetailView: View {
 
                 if let stay {
                     Section("Stay") {
-                        LabeledContent(
-                            "Hotel",
-                            value: stay.hotelName ?? stay.hotelCode
-                        )
+                        if let hotel {
+                            Button {
+                                selectedHotel = hotel
+                            } label: {
+                                LabeledContent {
+                                    HStack(spacing: 8) {
+                                        Text(hotel.displayName)
+                                            .foregroundStyle(.primary)
+                                        Image(systemName: "chevron.right")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                } label: {
+                                    Label("Hotel", systemImage: "bed.double")
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(
+                                "Open hotel details for \(hotel.displayName)"
+                            )
+                            .accessibilityIdentifier(
+                                "wai3.stay.hotelDetails"
+                            )
+                            .help("Open hotel details")
+                        } else {
+                            LabeledContent(
+                                "Hotel",
+                                value: stay.hotelName ?? stay.hotelCode
+                            )
+                        }
                         if stay.hotelName != nil {
                             LabeledContent("Roster code", value: stay.hotelCode)
                         }
@@ -1558,6 +1592,12 @@ private struct WAI3DutyDetailView: View {
                     Button("Done") { dismiss() }
                 }
             }
+        }
+        .sheet(item: $selectedHotel) { hotel in
+            HotelDetailView(
+                hotel: hotel,
+                hotelStayStore: hotelStayStore
+            )
         }
     }
 

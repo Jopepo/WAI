@@ -66,6 +66,24 @@ final class WAIUITests: XCTestCase {
         outboundDuty.tap()
 
         XCTAssertTrue(app.navigationBars["2CPH1501P"].waitForExistence(timeout: 2))
+        let hotelDetails = app.descendants(matching: .any)[
+            "wai3.stay.hotelDetails"
+        ]
+        scrollUntilAccessible(hotelDetails, in: app)
+        XCTAssertTrue(
+            hotelDetails.label.contains("Radisson Blu Scandinavia Hotel")
+        )
+        hotelDetails.tap()
+
+        XCTAssertTrue(app.navigationBars["Hotel"].waitForExistence(timeout: 2))
+        XCTAssertTrue(
+            app.staticTexts["Radisson Blu Scandinavia Hotel"].exists
+        )
+        app.navigationBars["Hotel"].buttons["Done"].tap()
+        XCTAssertTrue(
+            app.navigationBars["2CPH1501P"].waitForExistence(timeout: 2)
+        )
+
         let editRoomNumber = app.buttons["Edit room number"]
         let hotelName = app.staticTexts.matching(
             NSPredicate(
