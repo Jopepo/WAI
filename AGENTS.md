@@ -7,3 +7,15 @@
 - If a push fails, report the exact reason instead of claiming success.
 - Keep generated files and secrets out of commits.
 
+## Efficiency and execution policy
+
+- Use an economical model for routine implementation, tests, documentation,
+  maintenance, and repetitive tasks.
+- Reserve the strongest model for architecture decisions, security-sensitive
+  review, Supabase/RLS decisions, and difficult blockers.
+- Work in small, verifiable steps. Do not start a new work round without a
+  concrete objective.
+- Stop when the objective of the current round is complete; do not continue
+  speculative work.
+- End every round with a concise report covering changes, tests, risks, and the
+  next concrete step.
