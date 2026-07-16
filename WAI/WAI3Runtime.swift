@@ -8,6 +8,7 @@ final class WAI3Runtime {
     let operationalDataController: WAIProtectedOperationalDataController
     let rosterController: WAIRosterController
     let roomNumberController: WAIRoomNumberController
+    let personalizationController: WAIRosterPersonalizationController
     let calculationHistoryStore: CalculationHistoryStore
     let hotelStayStore: HotelStayStore
 
@@ -33,6 +34,8 @@ final class WAI3Runtime {
         )
         let rosterStore = try ProtectedRosterStore.production()
         let roomNumberStore = KeychainRosterRoomNumberStore()
+        let personalizationStore =
+            try ProtectedRosterPersonalizationStore.production()
         let calculationHistoryPersistence =
             try ProtectedCalculationHistoryPersistence.production()
         let hotelStayPersistence = try ProtectedHotelStayPersistence.production()
@@ -56,6 +59,7 @@ final class WAI3Runtime {
                 protectedCache,
                 rosterStore,
                 roomNumberStore,
+                personalizationStore,
                 calculationHistoryPersistence,
                 hotelStayPersistence,
                 UserDefaultsCalculationHistoryPersistence(),
@@ -73,6 +77,9 @@ final class WAI3Runtime {
         )
         roomNumberController = WAIRoomNumberController(
             store: roomNumberStore
+        )
+        personalizationController = WAIRosterPersonalizationController(
+            store: personalizationStore
         )
     }
 }

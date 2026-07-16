@@ -14,6 +14,7 @@ enum WAI3DebugFixturePresentation {
 final class WAI3DebugFixtureRuntime {
     let rosterController: WAIRosterController
     let roomNumberController: WAIRoomNumberController
+    let personalizationController: WAIRosterPersonalizationController
     let calculationHistoryStore: CalculationHistoryStore
     let hotelStayStore: HotelStayStore
     let dataService: DataService
@@ -34,6 +35,10 @@ final class WAI3DebugFixtureRuntime {
             store: WAI3DebugRoomNumberStore(ownerUserID: ownerUserID),
             now: { now }
         )
+        let personalizationController = WAIRosterPersonalizationController(
+            store: WAI3DebugPersonalizationStore(ownerUserID: ownerUserID),
+            now: { now }
+        )
         let calculationHistoryStore = CalculationHistoryStore(
             persistence: WAI3DebugCalculationPersistence()
         )
@@ -43,6 +48,7 @@ final class WAI3DebugFixtureRuntime {
 
         self.rosterController = rosterController
         self.roomNumberController = roomNumberController
+        self.personalizationController = personalizationController
         self.calculationHistoryStore = calculationHistoryStore
         self.hotelStayStore = hotelStayStore
         dataService = Self.makeDataService(now: now)
@@ -51,6 +57,12 @@ final class WAI3DebugFixtureRuntime {
 
         rosterController.prepare(for: ownerUserID)
         roomNumberController.prepare(for: ownerUserID)
+        personalizationController.prepare(for: ownerUserID)
+        _ = personalizationController.setHomeRoutine(
+            baseIATA: "LIS",
+            travelMinutes: 35,
+            wakeupBufferMinutes: 60
+        )
         calculationHistoryStore.prepare(for: ownerUserID)
         hotelStayStore.prepare(for: ownerUserID)
     }
@@ -360,6 +372,8 @@ final class WAI3DebugFixtureRuntime {
 struct WAI3DebugFixtureRootView: View {
     @StateObject private var rosterController: WAIRosterController
     @StateObject private var roomNumberController: WAIRoomNumberController
+    @StateObject private var personalizationController:
+        WAIRosterPersonalizationController
     @StateObject private var calculationHistoryStore: CalculationHistoryStore
     @StateObject private var hotelStayStore: HotelStayStore
     private let dataService: DataService
@@ -376,6 +390,9 @@ struct WAI3DebugFixtureRootView: View {
         )
         _roomNumberController = StateObject(
             wrappedValue: runtime.roomNumberController
+        )
+        _personalizationController = StateObject(
+            wrappedValue: runtime.personalizationController
         )
         _calculationHistoryStore = StateObject(
             wrappedValue: runtime.calculationHistoryStore
@@ -404,6 +421,7 @@ struct WAI3DebugFixtureRootView: View {
         WAI3CrewWorkspaceView(
             rosterController: rosterController,
             roomNumberController: roomNumberController,
+            personalizationController: personalizationController,
             calculationHistoryStore: calculationHistoryStore,
             hotelStayStore: hotelStayStore,
             dataService: dataService,
@@ -479,6 +497,40 @@ private final class WAI3DebugRoomNumberStore: RosterRoomNumberStoring {
 
     func clear() throws {
         records = []
+    }
+}
+
+private final class WAI3DebugPersonalizationStore:
+    RosterPersonalizationStoring
+{
+    private let ownerUserID: UUID
+    private var snapshot: RosterPersonalizationSnapshot?
+
+    init(ownerUserID: UUID) {
+        self.ownerUserID = ownerUserID
+    }
+
+    func load(
+        for ownerUserID: UUID
+    ) throws -> RosterPersonalizationSnapshot? {
+        guard ownerUserID == self.ownerUserID else {
+            throw ProtectedManualDataStoreError.ownerMismatch
+        }
+        return snapshot
+    }
+
+    func save(
+        _ snapshot: RosterPersonalizationSnapshot,
+        for ownerUserID: UUID
+    ) throws {
+        guard ownerUserID == self.ownerUserID else {
+            throw ProtectedManualDataStoreError.ownerMismatch
+        }
+        self.snapshot = snapshot
+    }
+
+    func clear() throws {
+        snapshot = nil
     }
 }
 

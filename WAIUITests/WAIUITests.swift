@@ -47,9 +47,9 @@ final class WAIUITests: XCTestCase {
         app.launchArguments.append("--wai3-approved-ui-test-fixture")
         app.launch()
 
-        let outboundDuty = app.descendants(matching: .any).matching(
-            NSPredicate(format: "label CONTAINS %@", "2CPH1501P")
-        ).firstMatch
+        let outboundDuty = app.descendants(matching: .any)[
+            "wai3.roster.duty.fixture-outbound-duty"
+        ]
         XCTAssertTrue(outboundDuty.waitForExistence(timeout: 4))
         XCTAssertTrue(outboundDuty.label.contains("13:30 - 19:00"))
         XCTAssertTrue(
@@ -170,10 +170,10 @@ final class WAIUITests: XCTestCase {
         XCTAssertTrue(app.tabBars.buttons["Analysis"].exists)
         XCTAssertTrue(app.tabBars.buttons["Calculator"].exists)
 
-        let outboundDuty = app.descendants(matching: .any).matching(
-            NSPredicate(format: "label CONTAINS %@", "2CPH1501P")
-        ).firstMatch
-        scrollUntilAccessible(outboundDuty, in: app)
+        let outboundDuty = app.descendants(matching: .any)[
+            "wai3.roster.duty.fixture-outbound-duty"
+        ]
+        scrollToEarlierContentUntilAccessible(outboundDuty, in: app)
         XCTAssertTrue(outboundDuty.label.contains("Wake-up"))
         XCTAssertTrue(outboundDuty.label.contains("Pick-up"))
         assertHorizontallyContained(outboundDuty, in: app)
@@ -211,6 +211,62 @@ final class WAIUITests: XCTestCase {
         attachScreenshot(named: "WAI 3 dark accessibility calculator")
     }
 
+    func testApprovedFixtureSupportsHomeRoutineAndBriefingEdits() {
+        let app = XCUIApplication()
+        app.launchArguments.append("--wai3-approved-ui-test-fixture")
+        app.launch()
+
+        let outboundDuty = app.descendants(matching: .any).matching(
+            NSPredicate(format: "label CONTAINS %@", "2CPH1501P")
+        ).firstMatch
+        XCTAssertTrue(outboundDuty.waitForExistence(timeout: 4))
+        XCTAssertTrue(outboundDuty.label.contains("Leave home"))
+        outboundDuty.tap()
+
+        XCTAssertTrue(
+            app.staticTexts["Home departure"].waitForExistence(timeout: 2)
+        )
+        XCTAssertTrue(app.staticTexts["Leave home"].exists)
+
+        let editBriefing = app.descendants(matching: .any)[
+            "wai3.briefing.edit.fixture-outbound-leg"
+        ]
+        scrollUntilAccessible(editBriefing, in: app)
+        editBriefing.tap()
+
+        XCTAssertTrue(
+            app.navigationBars["TP0754 briefing"]
+                .waitForExistence(timeout: 2)
+        )
+        let pax = app.descendants(matching: .any)["wai3.briefing.pax"]
+        XCTAssertTrue(pax.waitForExistence(timeout: 2))
+        pax.tap()
+        pax.typeText(
+            String(repeating: XCUIKeyboardKey.delete.rawValue, count: 3)
+                + "166"
+        )
+
+        let password = app.descendants(matching: .any)[
+            "wai3.briefing.password"
+        ]
+        scrollUntilAccessible(password, in: app)
+        password.tap()
+        password.typeText("7421")
+        app.buttons["Save"].tap()
+
+        let paxValue = app.descendants(matching: .any)[
+            "wai3.briefing.paxValue.fixture-outbound-leg"
+        ]
+        XCTAssertTrue(paxValue.waitForExistence(timeout: 2))
+        XCTAssertTrue(paxValue.label.contains("166"))
+        let passwordStatus = app.descendants(matching: .any)[
+            "wai3.briefing.passwordStatus.fixture-outbound-leg"
+        ]
+        XCTAssertTrue(passwordStatus.waitForExistence(timeout: 2))
+        XCTAssertTrue(passwordStatus.label.contains("Saved"))
+        XCTAssertFalse(app.staticTexts["7421"].exists)
+    }
+
     private func scrollUntilAccessible(
         _ element: XCUIElement,
         in app: XCUIApplication,
@@ -218,6 +274,18 @@ final class WAIUITests: XCTestCase {
     ) {
         for _ in 0..<attempts where !element.isHittable {
             app.swipeUp()
+        }
+        XCTAssertTrue(element.waitForExistence(timeout: 2))
+        XCTAssertTrue(element.isHittable)
+    }
+
+    private func scrollToEarlierContentUntilAccessible(
+        _ element: XCUIElement,
+        in app: XCUIApplication,
+        attempts: Int = 8
+    ) {
+        for _ in 0..<attempts where !element.isHittable {
+            app.swipeDown()
         }
         XCTAssertTrue(element.waitForExistence(timeout: 2))
         XCTAssertTrue(element.isHittable)

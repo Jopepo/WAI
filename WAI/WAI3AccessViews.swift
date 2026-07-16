@@ -10,6 +10,8 @@ struct WAI3AccessRootView: View {
         WAIProtectedOperationalDataController
     @StateObject private var rosterController: WAIRosterController
     @StateObject private var roomNumberController: WAIRoomNumberController
+    @StateObject private var personalizationController:
+        WAIRosterPersonalizationController
     @StateObject private var calculationHistoryStore: CalculationHistoryStore
     @StateObject private var hotelStayStore: HotelStayStore
     @StateObject private var privacyShieldController =
@@ -28,6 +30,9 @@ struct WAI3AccessRootView: View {
         _rosterController = StateObject(wrappedValue: runtime.rosterController)
         _roomNumberController = StateObject(
             wrappedValue: runtime.roomNumberController
+        )
+        _personalizationController = StateObject(
+            wrappedValue: runtime.personalizationController
         )
         _calculationHistoryStore = StateObject(
             wrappedValue: runtime.calculationHistoryStore
@@ -151,6 +156,7 @@ struct WAI3AccessRootView: View {
                 WAI3CrewWorkspaceView(
                     rosterController: rosterController,
                     roomNumberController: roomNumberController,
+                    personalizationController: personalizationController,
                     calculationHistoryStore: calculationHistoryStore,
                     hotelStayStore: hotelStayStore,
                     dataService: operationalDataController.dataService,
@@ -209,6 +215,7 @@ struct WAI3AccessRootView: View {
             retainedApprovedAccess = access
             rosterController.prepare(for: access.userID)
             roomNumberController.prepare(for: access.userID)
+            personalizationController.prepare(for: access.userID)
             calculationHistoryStore.prepare(for: access.userID)
             hotelStayStore.prepare(for: access.userID)
             Task {
@@ -223,6 +230,7 @@ struct WAI3AccessRootView: View {
             operationalDataController.reset()
             rosterController.reset()
             roomNumberController.reset()
+            personalizationController.reset()
             calculationHistoryStore.resetProtectedMemory()
             hotelStayStore.resetProtectedMemory()
         }
