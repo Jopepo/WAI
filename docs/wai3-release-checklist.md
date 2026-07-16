@@ -79,7 +79,10 @@ item below is complete.
 
 ## Personal and local data
 
-- [x] Calendar access is explicit and calendar/roster content stays device-only.
+- [x] Calendar access is explicit and roster content is processed locally. A
+  user-initiated briefing update writes only flight identity, route, and timing
+  to the selected Calendar account; passenger data and the commander password
+  stay out of Calendar.
 - [x] Imported rosters are parsed locally.
 - [x] Roster validation rejects nonexistent or repeated DST wall times, resolved
   legs outside their duty, and duties entirely outside declared coverage. It

@@ -92,8 +92,14 @@ taking a screenshot while actively viewing the app.
 - Tracking disabled and no tracking domains.
 
 Calendar permission is separately described by
-`NSCalendarsFullAccessUsageDescription`. Calendar content is device-only and is
-therefore not declared as collected data.
+`NSCalendarsFullAccessUsageDescription`. Roster content is processed locally
+and is not sent to the WAI backend. When the user saves a custom briefing
+flight time, WAI creates or updates a leg event in the selected Calendar
+account; that account's provider may sync the event off-device. The event
+contains the flight number, route, departure, duration, and an opaque WAI
+marker. Passenger data and the commander password are never added to Calendar.
+This user-initiated write path must be reassessed against App Store privacy
+definitions before release.
 
 ## Release blockers
 
