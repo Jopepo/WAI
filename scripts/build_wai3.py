@@ -26,6 +26,7 @@ OPERATIONAL_JSON_FILES = (
 
 @dataclass(frozen=True)
 class WAI3PublicBuildConfiguration:
+    bundle_identifier: str
     supabase_url: str
     supabase_publishable_key: str
     approval_email: str
@@ -40,6 +41,7 @@ class WAI3PublicBuildConfiguration:
         environment: Mapping[str, str],
     ) -> "WAI3PublicBuildConfiguration":
         required = {
+            "bundle_identifier": "WAI3_BUNDLE_IDENTIFIER",
             "supabase_url": "WAI3_SUPABASE_URL",
             "supabase_publishable_key": "WAI3_SUPABASE_PUBLISHABLE_KEY",
             "approval_email": "WAI3_APPROVAL_EMAIL",
@@ -71,6 +73,12 @@ class WAI3PublicBuildConfiguration:
         return configuration
 
     def validate(self) -> None:
+        if not wai3_release_gate._valid_bundle_identifier(
+            self.bundle_identifier
+        ):
+            raise WAI3BuildConfigurationError(
+                "WAI3_BUNDLE_IDENTIFIER must be a valid explicit bundle ID"
+            )
         if not wai3_release_gate._valid_supabase_url(self.supabase_url):
             raise WAI3BuildConfigurationError(
                 "WAI3_SUPABASE_URL must be an exact HTTPS Supabase URL"
@@ -106,6 +114,7 @@ class WAI3PublicBuildConfiguration:
 
     def xcode_build_settings(self) -> list[str]:
         return [
+            f"PRODUCT_BUNDLE_IDENTIFIER={self.bundle_identifier}",
             "WAI_APP_INFO_PLIST=WAI/WAI3-Info.plist",
             f"WAI_APP_MARKETING_VERSION={self.marketing_version}",
             f"WAI_APP_BUILD_NUMBER={self.build_number}",
@@ -247,7 +256,10 @@ def main(argv: list[str] | None = None) -> int:
             derived_data,
             device_build=arguments.device,
         )
-        wai3_release_gate.validate_app_bundle(app_bundle)
+        wai3_release_gate.validate_app_bundle(
+            app_bundle,
+            expected_bundle_identifier=configuration.bundle_identifier,
+        )
     except (
         WAI3BuildConfigurationError,
         wai3_release_gate.WAI3ReleaseGateError,

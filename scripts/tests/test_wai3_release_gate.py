@@ -73,6 +73,38 @@ class WAI3ReleaseGateTests(unittest.TestCase):
 
             wai3_release_gate.validate_app_bundle(app)
 
+    def test_enforces_expected_bundle_identifier(self):
+        with tempfile.TemporaryDirectory() as directory:
+            app = self.make_app(Path(directory))
+
+            wai3_release_gate.validate_app_bundle(
+                app,
+                expected_bundle_identifier="com.jplabs.WAI",
+            )
+            errors = wai3_release_gate.release_gate_errors(
+                app,
+                expected_bundle_identifier="com.jplabs.WAI.staging",
+            )
+
+            self.assertIn(
+                "CFBundleIdentifier does not match the expected build identifier",
+                errors,
+            )
+
+    def test_rejects_invalid_bundle_identifier(self):
+        with tempfile.TemporaryDirectory() as directory:
+            app = self.make_app(Path(directory))
+            info_path = app / "Info.plist"
+            with info_path.open("rb") as handle:
+                info = plistlib.load(handle)
+            info["CFBundleIdentifier"] = "com.jplabs.WAI.*"
+            with info_path.open("wb") as handle:
+                plistlib.dump(info, handle)
+
+            errors = wai3_release_gate.release_gate_errors(app)
+
+            self.assertIn("CFBundleIdentifier is missing or invalid", errors)
+
     def test_rejects_legacy_urls_and_operational_json(self):
         with tempfile.TemporaryDirectory() as directory:
             app = self.make_app(Path(directory))

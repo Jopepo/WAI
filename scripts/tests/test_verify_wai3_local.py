@@ -15,6 +15,7 @@ class WAI3LocalVerificationTests(unittest.TestCase):
         return (
             verify_wai3_local.build_wai3.WAI3PublicBuildConfiguration
             .from_environment({
+                "WAI3_BUNDLE_IDENTIFIER": "com.jplabs.WAI",
                 "WAI3_SUPABASE_URL":
                     "https://abcdefghijklmnopqrst.supabase.co",
                 "WAI3_SUPABASE_PUBLISHABLE_KEY":
@@ -47,6 +48,7 @@ class WAI3LocalVerificationTests(unittest.TestCase):
         self.assertNotIn("WAI_APP_INFO_PLIST", normal_text)
         self.assertNotIn("WAI_APP_EXCLUDED_SOURCE_FILE_NAMES", normal_text)
         self.assertIn("WAI_APP_INFO_PLIST=WAI/WAI3-Info.plist", secure)
+        self.assertIn("PRODUCT_BUNDLE_IDENTIFIER=com.jplabs.WAI", secure)
         self.assertIn("WAI_APP_EXCLUDED_SOURCE_FILE_NAMES", secure_text)
         self.assertIn(
             "-only-testing:WAIUITests/WAIUITests/"

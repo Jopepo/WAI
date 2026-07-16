@@ -232,7 +232,10 @@ def run_verification(
     wai3_simulator_app = build_wai3.built_app_path(
         paths.wai3_simulator_release
     )
-    wai3_release_gate.validate_app_bundle(wai3_simulator_app)
+    wai3_release_gate.validate_app_bundle(
+        wai3_simulator_app,
+        expected_bundle_identifier=configuration.bundle_identifier,
+    )
 
     print("[6/7] WAI 3 unsigned iPhone Release boundary", flush=True)
     run_command(
@@ -249,7 +252,10 @@ def run_verification(
         paths.wai3_device_release,
         device_build=True,
     )
-    wai3_release_gate.validate_app_bundle(wai3_device_app)
+    wai3_release_gate.validate_app_bundle(
+        wai3_device_app,
+        expected_bundle_identifier=configuration.bundle_identifier,
+    )
 
     print("[7/7] Release-to-Release simulator upgrade", flush=True)
     wai3_upgrade_gate.run_upgrade_gate(

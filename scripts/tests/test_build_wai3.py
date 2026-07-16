@@ -21,6 +21,7 @@ SPEC.loader.exec_module(build_wai3)
 class WAI3BuildTests(unittest.TestCase):
     def valid_environment(self):
         return {
+            "WAI3_BUNDLE_IDENTIFIER": "com.jplabs.WAI",
             "WAI3_SUPABASE_URL":
                 "https://abcdefghijklmnopqrst.supabase.co",
             "WAI3_SUPABASE_PUBLISHABLE_KEY":
@@ -38,6 +39,7 @@ class WAI3BuildTests(unittest.TestCase):
         settings = configuration.xcode_build_settings()
 
         self.assertIn("WAI_APP_INFO_PLIST=WAI/WAI3-Info.plist", settings)
+        self.assertIn("PRODUCT_BUNDLE_IDENTIFIER=com.jplabs.WAI", settings)
         self.assertTrue(
             any(item == "WAI_APP_MARKETING_VERSION=3.0" for item in settings)
         )
@@ -56,6 +58,11 @@ class WAI3BuildTests(unittest.TestCase):
 
         invalid = self.valid_environment()
         invalid["WAI3_PRIVACY_POLICY_URL"] = "https://127.0.0.1/privacy"
+        with self.assertRaises(build_wai3.WAI3BuildConfigurationError):
+            build_wai3.WAI3PublicBuildConfiguration.from_environment(invalid)
+
+        invalid = self.valid_environment()
+        invalid["WAI3_BUNDLE_IDENTIFIER"] = "com.jplabs.WAI.*"
         with self.assertRaises(build_wai3.WAI3BuildConfigurationError):
             build_wai3.WAI3PublicBuildConfiguration.from_environment(invalid)
 
@@ -127,7 +134,10 @@ class WAI3BuildTests(unittest.TestCase):
             self.assertEqual(result, 0)
             run.assert_called_once()
             self.assertIs(run.call_args.kwargs["check"], True)
-            validate.assert_called_once_with(app.resolve())
+            validate.assert_called_once_with(
+                app.resolve(),
+                expected_bundle_identifier="com.jplabs.WAI",
+            )
 
 
 if __name__ == "__main__":

@@ -10,6 +10,11 @@ item below is complete.
 - [x] The normal project configuration remains WAI `2.2 (16)`.
 - [x] WAI 2.2 keeps its current GitHub URLs and bundled JSON fallbacks.
 - [x] The WAI 3 build path is separate and uses `WAI3-Info.plist`.
+- [x] Every WAI 3 build requires an explicit Bundle ID and the release gate
+  verifies the identifier embedded in the built app.
+- [x] Internal staging uses `com.jplabs.WAI.staging`, so it can coexist with
+  WAI 2.2 on a test iPhone. Upgrade validation continues to use
+  `com.jplabs.WAI` deliberately.
 - [x] The WAI 3 build path contains no deploy or install action.
 - [ ] No branch push or deployment until explicitly approved by Joao.
 

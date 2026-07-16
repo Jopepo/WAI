@@ -49,13 +49,19 @@ REQUIRED_COLLECTED_DATA_TYPES = {
 }
 
 
-def validate_app_bundle(app_bundle: Path) -> None:
-    errors = release_gate_errors(app_bundle)
+def validate_app_bundle(
+    app_bundle: Path,
+    expected_bundle_identifier: str | None = None,
+) -> None:
+    errors = release_gate_errors(app_bundle, expected_bundle_identifier)
     if errors:
         raise WAI3ReleaseGateError("\n".join(errors))
 
 
-def release_gate_errors(app_bundle: Path) -> list[str]:
+def release_gate_errors(
+    app_bundle: Path,
+    expected_bundle_identifier: str | None = None,
+) -> list[str]:
     app_bundle = app_bundle.resolve()
     errors: list[str] = []
     if not app_bundle.is_dir() or app_bundle.suffix != ".app":
@@ -67,6 +73,17 @@ def release_gate_errors(app_bundle: Path) -> list[str]:
             info = plistlib.load(handle)
     except (OSError, plistlib.InvalidFileException):
         return ["Info.plist is missing or invalid"]
+
+    bundle_identifier = info.get("CFBundleIdentifier")
+    if not _valid_bundle_identifier(bundle_identifier):
+        errors.append("CFBundleIdentifier is missing or invalid")
+    elif (
+        expected_bundle_identifier is not None
+        and bundle_identifier != expected_bundle_identifier
+    ):
+        errors.append(
+            "CFBundleIdentifier does not match the expected build identifier"
+        )
 
     if info.get("WAI3SecureModeEnabled") is not True:
         errors.append("WAI3SecureModeEnabled must be true")
@@ -172,6 +189,18 @@ def _valid_supabase_url(value: object) -> bool:
         return False
     project_ref = parsed.hostname.removesuffix(".supabase.co")
     return bool(re.fullmatch(r"[a-z0-9]{8,40}", project_ref))
+
+
+def _valid_bundle_identifier(value: object) -> bool:
+    return (
+        isinstance(value, str)
+        and 3 <= len(value.encode("utf-8")) <= 255
+        and re.fullmatch(
+            r"[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+",
+            value,
+        )
+        is not None
+    )
 
 
 def _valid_email(value: str) -> bool:
@@ -310,9 +339,13 @@ def main(argv: list[str] | None = None) -> int:
         description="Fail unless a built WAI 3 app respects the private-data boundary."
     )
     parser.add_argument("app_bundle", type=Path)
+    parser.add_argument("--expected-bundle-identifier")
     arguments = parser.parse_args(argv)
     try:
-        validate_app_bundle(arguments.app_bundle)
+        validate_app_bundle(
+            arguments.app_bundle,
+            expected_bundle_identifier=arguments.expected_bundle_identifier,
+        )
     except WAI3ReleaseGateError as error:
         parser.error(str(error))
     print("WAI 3 privacy release gate passed.")
