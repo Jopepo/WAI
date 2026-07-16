@@ -228,6 +228,27 @@ final class WAIUITests: XCTestCase {
         )
         XCTAssertTrue(app.staticTexts["Pick-up / leave home"].exists)
 
+        let adjustHomeRoutine = app.descendants(matching: .any)[
+            "wai3.homeRoutine.adjust"
+        ]
+        XCTAssertTrue(adjustHomeRoutine.waitForExistence(timeout: 2))
+        adjustHomeRoutine.tap()
+        XCTAssertTrue(
+            app.navigationBars["Adjust home departure"]
+                .waitForExistence(timeout: 2)
+        )
+        XCTAssertTrue(
+            app.descendants(matching: .any)["wai3.homeRoutine.wakeup"].exists
+        )
+        XCTAssertTrue(
+            app.descendants(matching: .any)["wai3.homeRoutine.pickup"].exists
+        )
+        app.buttons["Save"].tap()
+        XCTAssertTrue(
+            app.staticTexts["Adjusted for this duty"]
+                .waitForExistence(timeout: 2)
+        )
+
         let editBriefing = app.descendants(matching: .any)[
             "wai3.briefing.edit.fixture-outbound-leg"
         ]

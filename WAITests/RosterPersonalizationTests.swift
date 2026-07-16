@@ -50,6 +50,39 @@ struct RosterHomeRoutineBuilderTests {
         )
     }
 
+    @Test func dutyOverrideAdjustsWakeupAndPickupIndependently() throws {
+        let report = Date(timeIntervalSince1970: 1_784_243_800)
+        let duty = flightDuty(
+            report: report,
+            originIATA: "LIS",
+            timeZoneIdentifier: "Europe/Lisbon"
+        )
+        let settings = RosterHomeRoutineSettings(
+            baseIATA: "LIS",
+            travelMinutes: 35,
+            wakeupBufferMinutes: 60
+        )
+        let override = RosterHomeRoutineOverrideRecord(
+            dutyID: duty.id,
+            pickupLeadMinutes: 50,
+            wakeupLeadMinutes: 125,
+            updatedAt: report
+        )
+
+        let routine = try #require(
+            RosterHomeRoutineBuilder.routine(
+                for: duty,
+                settings: settings,
+                override: override
+            )
+        )
+
+        #expect(routine.leaveHome == report.addingTimeInterval(-50 * 60))
+        #expect(routine.wakeup == report.addingTimeInterval(-125 * 60))
+        #expect(routine.travelMinutes == 50)
+        #expect(routine.usesDutyOverride)
+    }
+
     private func flightDuty(
         report: Date,
         originIATA: String,
@@ -140,6 +173,14 @@ struct RosterPersonalizationControllerTests {
                 commanderPassword: " 7421 "
             )
         )
+        #expect(
+            controller.setHomeRoutineOverride(
+                for: "duty-1",
+                report: now,
+                wakeup: now.addingTimeInterval(-125 * 60),
+                leaveHome: now.addingTimeInterval(-50 * 60)
+            )
+        )
 
         let saved = try #require(store.snapshot)
         #expect(saved.homeRoutine?.baseIATA == "LIS")
@@ -148,12 +189,33 @@ struct RosterPersonalizationControllerTests {
         #expect(saved.briefingRecords.first?.plannedFlightMinutes == 185)
         #expect(saved.briefingRecords.first?.commanderPassword == "7421")
         #expect(saved.briefingRecords.first?.updatedAt == now)
+        #expect(saved.homeRoutineOverrides.first?.dutyID == "duty-1")
+        #expect(saved.homeRoutineOverrides.first?.pickupLeadMinutes == 50)
+        #expect(saved.homeRoutineOverrides.first?.wakeupLeadMinutes == 125)
         #expect(store.savedOwner == ownerID)
 
         let restored = makeController(store: store)
         restored.prepare(for: ownerID)
         #expect(restored.homeRoutine == saved.homeRoutine)
         #expect(restored.briefing(for: "leg-1") == saved.briefingRecords.first)
+        #expect(
+            restored.homeRoutineOverride(for: "duty-1")
+                == saved.homeRoutineOverrides.first
+        )
+    }
+
+    @Test func legacySnapshotLoadsWithoutDutyOverrides() throws {
+        let data = Data(
+            #"{"schemaVersion":1,"homeRoutine":null,"briefingRecords":[]}"#.utf8
+        )
+
+        let snapshot = try JSONDecoder().decode(
+            RosterPersonalizationSnapshot.self,
+            from: data
+        )
+
+        #expect(snapshot.homeRoutineOverrides.isEmpty)
+        #expect(snapshot.isValid)
     }
 
     @Test func passwordRemainsAfterMemoryResetUntilExplicitlyRemoved() throws {
@@ -316,6 +378,14 @@ struct RosterPersonalizationProtectionTests {
                     commanderPassword: "secret-7421",
                     updatedAt: Date(timeIntervalSince1970: 1_784_243_800)
                 )
+            ],
+            homeRoutineOverrides: [
+                RosterHomeRoutineOverrideRecord(
+                    dutyID: "duty-private-1",
+                    pickupLeadMinutes: 50,
+                    wakeupLeadMinutes: 125,
+                    updatedAt: Date(timeIntervalSince1970: 1_784_243_800)
+                )
             ]
         )
 
@@ -324,6 +394,7 @@ struct RosterPersonalizationProtectionTests {
         let encrypted = try Data(contentsOf: fileURL)
         #expect(encrypted.range(of: Data("secret-7421".utf8)) == nil)
         #expect(encrypted.range(of: Data("leg-1".utf8)) == nil)
+        #expect(encrypted.range(of: Data("duty-private-1".utf8)) == nil)
         #expect(try store.load(for: ownerID) == snapshot)
         #expect(throws: ProtectedManualDataStoreError.ownerMismatch) {
             _ = try store.load(for: otherOwnerID)

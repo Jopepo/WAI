@@ -244,7 +244,12 @@ struct WAI3CrewWorkspaceView: View {
                                                 for: duty,
                                                 settings:
                                                     personalizationController
-                                                        .homeRoutine
+                                                        .homeRoutine,
+                                                override:
+                                                    personalizationController
+                                                        .homeRoutineOverride(
+                                                            for: duty.id
+                                                        )
                                             ),
                                         showsHomeRoutineSetup:
                                             personalizationController
@@ -1582,10 +1587,29 @@ private struct WAI3DutyDetailView: View {
                     "Travel",
                     value: "\(homeRoutine.travelMinutes) min"
                 )
+                if homeRoutine.usesDutyOverride {
+                    Label(
+                        "Adjusted for this duty",
+                        systemImage: "slider.horizontal.3"
+                    )
+                    .foregroundStyle(.blue)
+                }
+                NavigationLink {
+                    WAI3HomeRoutineOverrideView(
+                        routine: homeRoutine,
+                        controller: personalizationController
+                    )
+                } label: {
+                    Label(
+                        "Adjust this duty",
+                        systemImage: "slider.horizontal.3"
+                    )
+                }
+                .accessibilityIdentifier("wai3.homeRoutine.adjust")
                 Button {
                     showingHomeRoutineSettings = true
                 } label: {
-                    Label("Edit home routine", systemImage: "pencil")
+                    Label("Edit default routine", systemImage: "pencil")
                 }
             }
         } else if personalizationController.state == .failedSecureStorage,
@@ -1685,7 +1709,10 @@ private struct WAI3DutyDetailView: View {
     private var homeRoutine: RosterHomeRoutine? {
         RosterHomeRoutineBuilder.routine(
             for: duty,
-            settings: personalizationController.homeRoutine
+            settings: personalizationController.homeRoutine,
+            override: personalizationController.homeRoutineOverride(
+                for: duty.id
+            )
         )
     }
 
@@ -1866,6 +1893,135 @@ private struct WAI3HomeRoutineSettingsView: View {
             travelMinutes: travelMinutes,
             wakeupBufferMinutes: wakeupBufferMinutes
         ) {
+            dismiss()
+        }
+    }
+}
+
+private struct WAI3HomeRoutineOverrideView: View {
+    @Environment(\.dismiss) private var dismiss
+    let routine: RosterHomeRoutine
+    @ObservedObject var controller: WAIRosterPersonalizationController
+
+    @State private var wakeup: Date
+    @State private var leaveHome: Date
+
+    init(
+        routine: RosterHomeRoutine,
+        controller: WAIRosterPersonalizationController
+    ) {
+        self.routine = routine
+        self.controller = controller
+        _wakeup = State(initialValue: routine.wakeup)
+        _leaveHome = State(initialValue: routine.leaveHome)
+    }
+
+    var body: some View {
+        Form {
+            Section("This duty") {
+                LabeledContent(
+                    "Report",
+                    value: WAI3RosterFormatting.absoluteDateTime(
+                        routine.report,
+                        stationIATA: routine.stationIATA,
+                        timeZoneIdentifier: routine.timeZoneIdentifier
+                    )
+                )
+                DatePicker(
+                    "Wake-up",
+                    selection: $wakeup,
+                    in: allowedRange,
+                    displayedComponents: [.date, .hourAndMinute]
+                )
+                .accessibilityIdentifier("wai3.homeRoutine.wakeup")
+                DatePicker(
+                    "Pick-up / leave home",
+                    selection: $leaveHome,
+                    in: allowedRange,
+                    displayedComponents: [.date, .hourAndMinute]
+                )
+                .accessibilityIdentifier("wai3.homeRoutine.pickup")
+
+                if wakeup > leaveHome {
+                    Label(
+                        "Wake-up must be before pick-up",
+                        systemImage: "exclamationmark.triangle"
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(.orange)
+                }
+            }
+
+            if routine.usesDutyOverride {
+                Section {
+                    Button("Use default times", action: useDefaults)
+                }
+            }
+        }
+        .environment(\.timeZone, routineTimeZone)
+        .navigationTitle("Adjust home departure")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") { dismiss() }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save", action: save)
+                    .disabled(!canSave)
+            }
+        }
+        .alert(
+            "Home departure not saved",
+            isPresented: saveFailureBinding
+        ) {
+            Button("OK", role: .cancel) {
+                controller.clearSaveFailure()
+            }
+        } message: {
+            Text("The previous times were kept.")
+        }
+    }
+
+    private var allowedRange: ClosedRange<Date> {
+        let earliest = routine.report.addingTimeInterval(-86_400)
+        let latest = routine.report.addingTimeInterval(-60)
+        return earliest...latest
+    }
+
+    private var canSave: Bool {
+        controller.state == .ready
+        && wakeup <= leaveHome
+        && leaveHome < routine.report
+    }
+
+    private var routineTimeZone: TimeZone {
+        TimeZone(identifier: routine.timeZoneIdentifier) ?? .current
+    }
+
+    private var saveFailureBinding: Binding<Bool> {
+        Binding(
+            get: { controller.saveFailed },
+            set: { isPresented in
+                if !isPresented {
+                    controller.clearSaveFailure()
+                }
+            }
+        )
+    }
+
+    private func save() {
+        if controller.setHomeRoutineOverride(
+            for: routine.dutyID,
+            report: routine.report,
+            wakeup: wakeup,
+            leaveHome: leaveHome
+        ) {
+            dismiss()
+        }
+    }
+
+    private func useDefaults() {
+        if controller.clearHomeRoutineOverride(for: routine.dutyID) {
             dismiss()
         }
     }
