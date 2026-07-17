@@ -38,12 +38,17 @@ struct WAI3CrewWorkspaceView: View {
                             .accessibilityLabel("Go to today")
                             .accessibilityIdentifier("wai3.roster.today")
 
-                            Button {
-                                showingFileImporter = true
-                            } label: {
-                                Image(systemName: "square.and.arrow.down")
+                            Button(action: connectCalendar) {
+                                if isRefreshingCalendar {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                } else {
+                                    Image(systemName: "arrow.clockwise")
+                                }
                             }
-                            .accessibilityLabel("Import iCal roster")
+                            .disabled(isRefreshingCalendar)
+                            .accessibilityLabel("Refresh roster from Calendar")
+                            .accessibilityIdentifier("wai3.roster.refresh")
 
                             Button(action: accountAction) {
                                 Image(systemName: "person.crop.circle")
@@ -154,6 +159,16 @@ struct WAI3CrewWorkspaceView: View {
                     force: true
                 )
             }
+        }
+    }
+
+    private var isRefreshingCalendar: Bool {
+        switch rosterController.calendarState {
+        case .requestingAccess, .scanning:
+            true
+        case .notDetermined, .available, .accessDenied, .restricted,
+             .noRosterFound, .selectionRequired, .synced, .failed:
+            false
         }
     }
 
