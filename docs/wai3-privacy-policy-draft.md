@@ -38,6 +38,13 @@ locally. WAI does not upload this information to its service. Sensitive local
 records are owner-bound and protected with iOS Keychain or encrypted files.
 Protected files are excluded from device backup.
 
+When the user opens a flight briefing, WAI may request the current METAR from
+the US National Weather Service Aviation Weather Center. That request contains
+only the public ICAO airport codes for the displayed origin and destination.
+WAI does not include account, roster, passenger, crew, room, password, or device
+location data in the request. Weather failure does not prevent offline access
+to roster and briefing information.
+
 Sign-out clears local authorization and protected personal data before waiting
 for the remote service. WAI keeps a device-only interruption marker until that
 cleanup completes, so an interrupted sign-out is finished before access can be
@@ -90,6 +97,7 @@ joao.p.possidonio@gmail.com
 - Verify Supabase and Apple operational logging and retention for the deployed
   production configuration.
 - Add links to the final Apple and Supabase privacy terms used by the service.
+- Confirm the Aviation Weather Center privacy terms and request-log retention.
 - Confirm any legally required rights, jurisdiction, and complaint authority.
 - Set the effective date and publish the final policy at the exact HTTPS URL
   configured in the app and App Store Connect.

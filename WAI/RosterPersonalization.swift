@@ -78,6 +78,25 @@ struct RosterHomeRoutineOverrideRecord:
     }
 }
 
+struct RosterStayRoutineOverrideRecord:
+    Codable, Equatable, Sendable, Identifiable
+{
+    let stayID: String
+    let pickupLeadMinutes: Int
+    let wakeupLeadMinutes: Int
+    let updatedAt: Date
+
+    var id: String { stayID }
+
+    var isValid: Bool {
+        !stayID.isEmpty
+        && stayID.utf8.count <= 512
+        && (1...1_440).contains(pickupLeadMinutes)
+        && (pickupLeadMinutes...1_440).contains(wakeupLeadMinutes)
+        && updatedAt.timeIntervalSinceReferenceDate.isFinite
+    }
+}
+
 struct RosterPersonalizationSnapshot: Codable, Equatable, Sendable {
     static let currentSchemaVersion = 1
 
@@ -85,17 +104,20 @@ struct RosterPersonalizationSnapshot: Codable, Equatable, Sendable {
     let homeRoutine: RosterHomeRoutineSettings?
     let briefingRecords: [RosterLegBriefingRecord]
     let homeRoutineOverrides: [RosterHomeRoutineOverrideRecord]
+    let stayRoutineOverrides: [RosterStayRoutineOverrideRecord]
 
     init(
         schemaVersion: Int = currentSchemaVersion,
         homeRoutine: RosterHomeRoutineSettings?,
         briefingRecords: [RosterLegBriefingRecord],
-        homeRoutineOverrides: [RosterHomeRoutineOverrideRecord] = []
+        homeRoutineOverrides: [RosterHomeRoutineOverrideRecord] = [],
+        stayRoutineOverrides: [RosterStayRoutineOverrideRecord] = []
     ) {
         self.schemaVersion = schemaVersion
         self.homeRoutine = homeRoutine
         self.briefingRecords = briefingRecords
         self.homeRoutineOverrides = homeRoutineOverrides
+        self.stayRoutineOverrides = stayRoutineOverrides
     }
 
     var isValid: Bool {
@@ -108,6 +130,10 @@ struct RosterPersonalizationSnapshot: Codable, Equatable, Sendable {
         && homeRoutineOverrides.allSatisfy(\.isValid)
         && Set(homeRoutineOverrides.map(\.dutyID)).count
             == homeRoutineOverrides.count
+        && stayRoutineOverrides.count <= 500
+        && stayRoutineOverrides.allSatisfy(\.isValid)
+        && Set(stayRoutineOverrides.map(\.stayID)).count
+            == stayRoutineOverrides.count
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -115,6 +141,7 @@ struct RosterPersonalizationSnapshot: Codable, Equatable, Sendable {
         case homeRoutine
         case briefingRecords
         case homeRoutineOverrides
+        case stayRoutineOverrides
     }
 
     init(from decoder: Decoder) throws {
@@ -132,6 +159,10 @@ struct RosterPersonalizationSnapshot: Codable, Equatable, Sendable {
             [RosterHomeRoutineOverrideRecord].self,
             forKey: .homeRoutineOverrides
         ) ?? []
+        stayRoutineOverrides = try container.decodeIfPresent(
+            [RosterStayRoutineOverrideRecord].self,
+            forKey: .stayRoutineOverrides
+        ) ?? []
     }
 
     func encode(to encoder: Encoder) throws {
@@ -142,6 +173,10 @@ struct RosterPersonalizationSnapshot: Codable, Equatable, Sendable {
         try container.encode(
             homeRoutineOverrides,
             forKey: .homeRoutineOverrides
+        )
+        try container.encode(
+            stayRoutineOverrides,
+            forKey: .stayRoutineOverrides
         )
     }
 }
@@ -213,6 +248,8 @@ final class WAIRosterPersonalizationController: ObservableObject {
         [String: RosterLegBriefingRecord] = [:]
     @Published private(set) var homeRoutineOverrides:
         [String: RosterHomeRoutineOverrideRecord] = [:]
+    @Published private(set) var stayRoutineOverrides:
+        [String: RosterStayRoutineOverrideRecord] = [:]
     @Published private(set) var saveFailed = false
 
     private let store: RosterPersonalizationStoring
@@ -273,6 +310,12 @@ final class WAIRosterPersonalizationController: ObservableObject {
         homeRoutineOverrides[dutyID]
     }
 
+    func stayRoutineOverride(
+        for stayID: String
+    ) -> RosterStayRoutineOverrideRecord? {
+        stayRoutineOverrides[stayID]
+    }
+
     @discardableResult
     func setHomeRoutine(
         baseIATA: String,
@@ -293,7 +336,8 @@ final class WAIRosterPersonalizationController: ObservableObject {
         return save(
             homeRoutine: settings,
             records: Array(briefingRecords.values),
-            overrides: Array(homeRoutineOverrides.values)
+            overrides: Array(homeRoutineOverrides.values),
+            stayOverrides: Array(stayRoutineOverrides.values)
         )
     }
 
@@ -333,7 +377,8 @@ final class WAIRosterPersonalizationController: ObservableObject {
         return save(
             homeRoutine: homeRoutine,
             records: Array(briefingRecords.values),
-            overrides: Array(limitedOverrides)
+            overrides: Array(limitedOverrides),
+            stayOverrides: Array(stayRoutineOverrides.values)
         )
     }
 
@@ -344,7 +389,59 @@ final class WAIRosterPersonalizationController: ObservableObject {
         return save(
             homeRoutine: homeRoutine,
             records: Array(briefingRecords.values),
-            overrides: Array(overrides.values)
+            overrides: Array(overrides.values),
+            stayOverrides: Array(stayRoutineOverrides.values)
+        )
+    }
+
+    @discardableResult
+    func setStayRoutineOverride(
+        for stayID: String,
+        report: Date,
+        wakeup: Date,
+        pickup: Date
+    ) -> Bool {
+        guard report.timeIntervalSinceReferenceDate.isFinite,
+              wakeup.timeIntervalSinceReferenceDate.isFinite,
+              pickup.timeIntervalSinceReferenceDate.isFinite,
+              wakeup <= pickup,
+              pickup < report else {
+            saveFailed = true
+            return false
+        }
+        let record = RosterStayRoutineOverrideRecord(
+            stayID: stayID,
+            pickupLeadMinutes: minutes(from: pickup, to: report),
+            wakeupLeadMinutes: minutes(from: wakeup, to: report),
+            updatedAt: now()
+        )
+        guard record.isValid else {
+            saveFailed = true
+            return false
+        }
+
+        var overrides = stayRoutineOverrides
+        overrides[stayID] = record
+        let limitedOverrides = overrides.values
+            .sorted { $0.updatedAt > $1.updatedAt }
+            .prefix(500)
+        return save(
+            homeRoutine: homeRoutine,
+            records: Array(briefingRecords.values),
+            overrides: Array(homeRoutineOverrides.values),
+            stayOverrides: Array(limitedOverrides)
+        )
+    }
+
+    @discardableResult
+    func clearStayRoutineOverride(for stayID: String) -> Bool {
+        var overrides = stayRoutineOverrides
+        overrides.removeValue(forKey: stayID)
+        return save(
+            homeRoutine: homeRoutine,
+            records: Array(briefingRecords.values),
+            overrides: Array(homeRoutineOverrides.values),
+            stayOverrides: Array(overrides.values)
         )
     }
 
@@ -382,7 +479,8 @@ final class WAIRosterPersonalizationController: ObservableObject {
         return save(
             homeRoutine: homeRoutine,
             records: Array(limitedRecords),
-            overrides: Array(homeRoutineOverrides.values)
+            overrides: Array(homeRoutineOverrides.values),
+            stayOverrides: Array(stayRoutineOverrides.values)
         )
     }
 
@@ -395,6 +493,7 @@ final class WAIRosterPersonalizationController: ObservableObject {
         homeRoutine = nil
         briefingRecords = [:]
         homeRoutineOverrides = [:]
+        stayRoutineOverrides = [:]
         saveFailed = false
         state = .idle
     }
@@ -402,7 +501,8 @@ final class WAIRosterPersonalizationController: ObservableObject {
     private func save(
         homeRoutine: RosterHomeRoutineSettings?,
         records: [RosterLegBriefingRecord],
-        overrides: [RosterHomeRoutineOverrideRecord]
+        overrides: [RosterHomeRoutineOverrideRecord],
+        stayOverrides: [RosterStayRoutineOverrideRecord]
     ) -> Bool {
         guard state == .ready, let ownerUserID else {
             saveFailed = true
@@ -411,7 +511,8 @@ final class WAIRosterPersonalizationController: ObservableObject {
         let snapshot = RosterPersonalizationSnapshot(
             homeRoutine: homeRoutine,
             briefingRecords: records,
-            homeRoutineOverrides: overrides
+            homeRoutineOverrides: overrides,
+            stayRoutineOverrides: stayOverrides
         )
         guard snapshot.isValid else {
             saveFailed = true
@@ -441,6 +542,11 @@ final class WAIRosterPersonalizationController: ObservableObject {
                 ($0.dutyID, $0)
             }
         )
+        stayRoutineOverrides = Dictionary(
+            uniqueKeysWithValues: snapshot.stayRoutineOverrides.map {
+                ($0.stayID, $0)
+            }
+        )
     }
 
     private func minutes(from start: Date, to end: Date) -> Int {
@@ -456,6 +562,7 @@ final class WAIRosterPersonalizationController: ObservableObject {
         homeRoutine = nil
         briefingRecords = [:]
         homeRoutineOverrides = [:]
+        stayRoutineOverrides = [:]
         saveFailed = false
         state = .failedSecureStorage
     }

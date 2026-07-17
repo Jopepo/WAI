@@ -260,7 +260,14 @@ struct WAI3CrewWorkspaceView: View {
                                             && duty.kind == .flight,
                                         roomNumber: staysByDuty[duty.id].flatMap {
                                             roomNumberController.roomNumber(for: $0.id)
-                                        }
+                                        },
+                                        stayRoutineOverride: staysByDuty[duty.id]
+                                            .flatMap {
+                                                personalizationController
+                                                    .stayRoutineOverride(
+                                                        for: $0.id
+                                                    )
+                                            }
                                     )
                                 }
                                 .buttonStyle(.plain)
@@ -908,6 +915,7 @@ private struct WAI3DutyRow: View {
     let homeRoutine: RosterHomeRoutine?
     let showsHomeRoutineSetup: Bool
     let roomNumber: String?
+    let stayRoutineOverride: RosterStayRoutineOverrideRecord?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -1223,20 +1231,40 @@ private struct WAI3DutyRow: View {
         _ details: TimeCalculationDetails,
         stay: RosterStay
     ) -> some View {
-        timingLabel(
-            "Wake-up",
-            systemImage: "alarm",
-            window: details.wakeup,
-            stationIATA: stay.stationIATA,
-            timeZoneIdentifier: stay.stationTimeZoneIdentifier
-        )
-        timingLabel(
-            "Pick-up",
-            systemImage: "bus",
-            window: details.pickup,
-            stationIATA: stay.stationIATA,
-            timeZoneIdentifier: stay.stationTimeZoneIdentifier
-        )
+        if let routine = RosterStayRoutineBuilder.routine(
+            for: stay,
+            override: stayRoutineOverride
+        ), routine.usesOverride {
+            timingLabel(
+                "Wake-up",
+                systemImage: "alarm",
+                date: routine.wakeup,
+                stationIATA: stay.stationIATA,
+                timeZoneIdentifier: stay.stationTimeZoneIdentifier
+            )
+            timingLabel(
+                "Pick-up",
+                systemImage: "bus",
+                date: routine.pickup,
+                stationIATA: stay.stationIATA,
+                timeZoneIdentifier: stay.stationTimeZoneIdentifier
+            )
+        } else {
+            timingLabel(
+                "Wake-up",
+                systemImage: "alarm",
+                window: details.wakeup,
+                stationIATA: stay.stationIATA,
+                timeZoneIdentifier: stay.stationTimeZoneIdentifier
+            )
+            timingLabel(
+                "Pick-up",
+                systemImage: "bus",
+                window: details.pickup,
+                stationIATA: stay.stationIATA,
+                timeZoneIdentifier: stay.stationTimeZoneIdentifier
+            )
+        }
     }
 
     private func timingLabel(
@@ -1251,6 +1279,26 @@ private struct WAI3DutyRow: View {
                 .font(.caption.monospacedDigit())
                 .lineLimit(nil)
                 .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
+        }
+        .foregroundStyle(.secondary)
+    }
+
+    private func timingLabel(
+        _ title: String,
+        systemImage: String,
+        date: Date,
+        stationIATA: String,
+        timeZoneIdentifier: String?
+    ) -> some View {
+        Label {
+            Text(
+                "\(title) \(WAI3RosterFormatting.compactWindow(TimeCalculationWindow(earliest: date, latest: date), stationIATA: stationIATA, timeZoneIdentifier: timeZoneIdentifier))"
+            )
+            .font(.caption.monospacedDigit())
+            .lineLimit(nil)
+            .fixedSize(horizontal: false, vertical: true)
         } icon: {
             Image(systemName: systemImage)
         }
@@ -1472,48 +1520,13 @@ private struct WAI3DutyDetailView: View {
                         }
                     }
 
-                    Section("Automatic routine") {
-                        WAI3StayTimingDetail(stay: stay)
-                    }
-                }
-
-                ForEach(duty.legs) { leg in
-                    Section("\(leg.flightNumber)  \(leg.originIATA) - \(leg.destinationIATA)") {
-                        LabeledContent(
-                            "Departure",
-                            value: WAI3RosterFormatting.localDateTime(leg.departure)
+                    Section("Wake-up and pick-up") {
+                        WAI3StayTimingDetail(
+                            stay: stay,
+                            override: personalizationController
+                                .stayRoutineOverride(for: stay.id),
+                            controller: personalizationController
                         )
-                        LabeledContent(
-                            "Arrival",
-                            value: WAI3RosterFormatting.localDateTime(leg.arrival)
-                        )
-                        if let block = analysis?
-                            .analysis(for: leg.id)?
-                            .blockMinutes {
-                            LabeledContent(
-                                "Block time",
-                                value: WAI3RosterFormatting.duration(block)
-                            )
-                        } else if leg.departure.instant == nil
-                                    || leg.arrival.instant == nil {
-                            LabeledContent(
-                                "Block time",
-                                value: "Time zone unresolved"
-                            )
-                        }
-                        if let registration = leg.aircraftRegistration {
-                            LabeledContent("Aircraft", value: registration)
-                        }
-                        if let aircraftName = leg.aircraftName {
-                            LabeledContent("Name", value: aircraftName)
-                        }
-                        if let radiation = leg.cosmicRadiation {
-                            LabeledContent(
-                                "Cosmic radiation",
-                                value: radiation.formatted()
-                            )
-                        }
-
                     }
                 }
             }
@@ -1544,22 +1557,38 @@ private struct WAI3DutyDetailView: View {
     private var homeDepartureSection: some View {
         if let homeRoutine {
             Section("Home departure") {
-                LabeledContent(
-                    "Wake-up",
-                    value: WAI3RosterFormatting.absoluteDateTime(
-                        homeRoutine.wakeup,
-                        stationIATA: homeRoutine.stationIATA,
-                        timeZoneIdentifier: homeRoutine.timeZoneIdentifier
+                NavigationLink {
+                    WAI3HomeRoutineOverrideView(
+                        routine: homeRoutine,
+                        controller: personalizationController
                     )
-                )
-                LabeledContent(
-                    "Pick-up / leave home",
-                    value: WAI3RosterFormatting.absoluteDateTime(
-                        homeRoutine.leaveHome,
-                        stationIATA: homeRoutine.stationIATA,
-                        timeZoneIdentifier: homeRoutine.timeZoneIdentifier
+                } label: {
+                    LabeledContent(
+                        "Wake-up",
+                        value: WAI3RosterFormatting.absoluteDateTime(
+                            homeRoutine.wakeup,
+                            stationIATA: homeRoutine.stationIATA,
+                            timeZoneIdentifier: homeRoutine.timeZoneIdentifier
+                        )
                     )
-                )
+                }
+                .accessibilityIdentifier("wai3.homeRoutine.wakeupLink")
+                NavigationLink {
+                    WAI3HomeRoutineOverrideView(
+                        routine: homeRoutine,
+                        controller: personalizationController
+                    )
+                } label: {
+                    LabeledContent(
+                        "Pick-up / leave home",
+                        value: WAI3RosterFormatting.absoluteDateTime(
+                            homeRoutine.leaveHome,
+                            stationIATA: homeRoutine.stationIATA,
+                            timeZoneIdentifier: homeRoutine.timeZoneIdentifier
+                        )
+                    )
+                }
+                .accessibilityIdentifier("wai3.homeRoutine.pickupLink")
                 LabeledContent(
                     "Report",
                     value: WAI3RosterFormatting.absoluteDateTime(
@@ -1579,18 +1608,6 @@ private struct WAI3DutyDetailView: View {
                     )
                     .foregroundStyle(.blue)
                 }
-                NavigationLink {
-                    WAI3HomeRoutineOverrideView(
-                        routine: homeRoutine,
-                        controller: personalizationController
-                    )
-                } label: {
-                    Label(
-                        "Adjust this duty",
-                        systemImage: "slider.horizontal.3"
-                    )
-                }
-                .accessibilityIdentifier("wai3.homeRoutine.adjust")
                 Button {
                     showingHomeRoutineSettings = true
                 } label: {
@@ -1632,41 +1649,10 @@ private struct WAI3DutyDetailView: View {
     @ViewBuilder
     private var briefingSection: some View {
         if !duty.legs.isEmpty {
-            Section("Briefing") {
+            Section("Flights") {
                 ForEach(duty.legs) { leg in
                     let briefing = personalizationController.briefing(
                         for: leg.id
-                    )
-                    Text(
-                        "\(leg.flightNumber)  \(leg.originIATA) - \(leg.destinationIATA)"
-                    )
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-
-                    LabeledContent(
-                        "Pax",
-                        value: briefing?.passengerLoad
-                            ?? leg.passengerLoad
-                            ?? "Not set"
-                    )
-                    .accessibilityIdentifier(
-                        "wai3.briefing.paxValue.\(leg.id)"
-                    )
-                    LabeledContent(
-                        "Flight time",
-                        value: effectiveFlightTime(
-                            for: leg,
-                            briefing: briefing
-                        )
-                    )
-                    LabeledContent(
-                        "Commander password",
-                        value: briefing?.commanderPassword == nil
-                            ? "Not set"
-                            : "Saved"
-                    )
-                    .accessibilityIdentifier(
-                        "wai3.briefing.passwordStatus.\(leg.id)"
                     )
                     NavigationLink {
                         WAI3LegBriefingEditView(
@@ -1675,11 +1661,64 @@ private struct WAI3DutyDetailView: View {
                             rosterBlockMinutes: analysis?
                                 .analysis(for: leg.id)?
                                 .blockMinutes,
+                            stations: stations,
                             controller: personalizationController,
                             rosterController: rosterController
                         )
                     } label: {
-                        Label("Update briefing", systemImage: "pencil")
+                        VStack(alignment: .leading, spacing: 7) {
+                            HStack(alignment: .firstTextBaseline) {
+                                Text(leg.flightNumber)
+                                    .font(.headline)
+                                Text(
+                                    "\(leg.originIATA) - \(leg.destinationIATA)"
+                                )
+                                .font(.subheadline)
+                                Spacer()
+                                Text(WAI3RosterFormatting.legRange(leg))
+                                    .font(.caption.monospacedDigit())
+                                    .foregroundStyle(.secondary)
+                            }
+                            ViewThatFits(in: .horizontal) {
+                                HStack(spacing: 14) {
+                                    briefingMetric(
+                                        "Pax",
+                                        value: briefing?.passengerLoad
+                                            ?? leg.passengerLoad
+                                            ?? "Not set"
+                                    )
+                                    briefingMetric(
+                                        "Flight",
+                                        value: effectiveFlightTime(
+                                            for: leg,
+                                            briefing: briefing
+                                        )
+                                    )
+                                    briefingMetric(
+                                        "Password",
+                                        value: briefing?.commanderPassword == nil
+                                            ? "Not set"
+                                            : "Saved"
+                                    )
+                                }
+                                VStack(alignment: .leading, spacing: 3) {
+                                    briefingMetric(
+                                        "Pax",
+                                        value: briefing?.passengerLoad
+                                            ?? leg.passengerLoad
+                                            ?? "Not set"
+                                    )
+                                    briefingMetric(
+                                        "Flight",
+                                        value: effectiveFlightTime(
+                                            for: leg,
+                                            briefing: briefing
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                        .padding(.vertical, 3)
                     }
                     .accessibilityIdentifier(
                         "wai3.briefing.edit.\(leg.id)"
@@ -1687,12 +1726,15 @@ private struct WAI3DutyDetailView: View {
 
                     briefingCalendarStatus(for: leg)
 
-                    if leg.id != duty.legs.last?.id {
-                        Divider()
-                    }
                 }
             }
         }
+    }
+
+    private func briefingMetric(_ title: String, value: String) -> some View {
+        Text("\(title) \(value)")
+            .font(.caption)
+            .foregroundStyle(.secondary)
     }
 
     @ViewBuilder
@@ -2026,19 +2068,17 @@ private struct WAI3HomeRoutineOverrideView: View {
                 DatePicker(
                     "Wake-up",
                     selection: $wakeup,
-                    in: allowedRange,
-                    displayedComponents: [.date, .hourAndMinute]
+                    displayedComponents: [.hourAndMinute]
                 )
                 .accessibilityIdentifier("wai3.homeRoutine.wakeup")
                 DatePicker(
                     "Pick-up / leave home",
                     selection: $leaveHome,
-                    in: allowedRange,
-                    displayedComponents: [.date, .hourAndMinute]
+                    displayedComponents: [.hourAndMinute]
                 )
                 .accessibilityIdentifier("wai3.homeRoutine.pickup")
 
-                if wakeup > leaveHome {
+                if resolvedTimes == nil {
                     Label(
                         "Wake-up must be before pick-up",
                         systemImage: "exclamationmark.triangle"
@@ -2078,16 +2118,18 @@ private struct WAI3HomeRoutineOverrideView: View {
         }
     }
 
-    private var allowedRange: ClosedRange<Date> {
-        let earliest = routine.report.addingTimeInterval(-86_400)
-        let latest = routine.report.addingTimeInterval(-60)
-        return earliest...latest
-    }
-
     private var canSave: Bool {
         controller.state == .ready
-        && wakeup <= leaveHome
-        && leaveHome < routine.report
+        && resolvedTimes != nil
+    }
+
+    private var resolvedTimes: (wakeup: Date, pickup: Date)? {
+        WAI3RoutineTimeResolver.resolvedPair(
+            wakeupClock: wakeup,
+            pickupClock: leaveHome,
+            report: routine.report,
+            timeZoneIdentifier: routine.timeZoneIdentifier
+        )
     }
 
     private var routineTimeZone: TimeZone {
@@ -2106,11 +2148,12 @@ private struct WAI3HomeRoutineOverrideView: View {
     }
 
     private func save() {
+        guard let resolvedTimes else { return }
         if controller.setHomeRoutineOverride(
             for: routine.dutyID,
             report: routine.report,
-            wakeup: wakeup,
-            leaveHome: leaveHome
+            wakeup: resolvedTimes.wakeup,
+            leaveHome: resolvedTimes.pickup
         ) {
             dismiss()
         }
@@ -2128,6 +2171,7 @@ private struct WAI3LegBriefingEditView: View {
     let duty: RosterDuty
     let leg: RosterLeg
     let rosterBlockMinutes: Int?
+    let stations: [Station]
     @ObservedObject var controller: WAIRosterPersonalizationController
     @ObservedObject var rosterController: WAIRosterController
 
@@ -2138,6 +2182,7 @@ private struct WAI3LegBriefingEditView: View {
     @State private var commanderPassword = ""
     @State private var showsPassword = false
     @State private var isSaving = false
+    @State private var weatherState: WeatherState = .idle
     @FocusState private var focusedTimeField: FlightTimeField?
 
     private enum FlightTimeField {
@@ -2145,8 +2190,42 @@ private struct WAI3LegBriefingEditView: View {
         case minutes
     }
 
+    private enum WeatherState {
+        case idle
+        case loading
+        case available([AviationWeatherReport])
+        case unavailable
+    }
+
     var body: some View {
         Form {
+            Section("Flight") {
+                LabeledContent(
+                    "Route",
+                    value: "\(leg.originIATA) - \(leg.destinationIATA)"
+                )
+                LabeledContent(
+                    "Departure",
+                    value: WAI3RosterFormatting.localDateTime(leg.departure)
+                )
+                LabeledContent(
+                    "Arrival",
+                    value: WAI3RosterFormatting.localDateTime(leg.arrival)
+                )
+                LabeledContent(
+                    "Roster duration",
+                    value: rosterBlockMinutes.map(
+                        WAI3RosterFormatting.duration
+                    ) ?? "Time zone unresolved"
+                )
+                if let registration = leg.aircraftRegistration {
+                    LabeledContent("Aircraft", value: registration)
+                }
+                if let aircraftName = leg.aircraftName {
+                    LabeledContent("Type", value: aircraftName)
+                }
+            }
+
             Section("Passengers") {
                 TextField("Pax", text: $passengerLoad)
                     .textInputAutocapitalization(.characters)
@@ -2312,8 +2391,35 @@ private struct WAI3LegBriefingEditView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
+
+            Section("Special passengers") {
+                Text("INF (—)   WCHS (—)   WCHR (—)")
+                Text("WCHC (—)   UM (—)   NAV (—)")
+            }
+
+            weatherSection
+
+            if !leg.crew.isEmpty {
+                Section("Crew") {
+                    ForEach(leg.crew) { member in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(member.name)
+                                .fontWeight(.medium)
+                            HStack(spacing: 10) {
+                                Text(member.roleCode)
+                                Text(member.employeeIdentifier)
+                                if member.isDeadhead {
+                                    Text("DHC")
+                                }
+                            }
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
         }
-        .navigationTitle("\(leg.flightNumber) briefing")
+        .navigationTitle(leg.flightNumber)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
@@ -2338,6 +2444,9 @@ private struct WAI3LegBriefingEditView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .onAppear(perform: load)
+        .task(id: weatherStationCodes) {
+            await loadWeather()
+        }
         .alert(
             "Briefing not saved",
             isPresented: saveFailureBinding
@@ -2347,6 +2456,126 @@ private struct WAI3LegBriefingEditView: View {
             }
         } message: {
             Text("The previous briefing details were kept.")
+        }
+    }
+
+    @ViewBuilder
+    private var weatherSection: some View {
+        Section("Weather and METAR") {
+            switch weatherState {
+            case .idle, .loading:
+                HStack(spacing: 10) {
+                    ProgressView()
+                    Text("Loading airport weather")
+                        .foregroundStyle(.secondary)
+                }
+            case .available(let reports):
+                ForEach(reports) { report in
+                    weatherReport(report)
+                }
+                Button {
+                    Task { await loadWeather() }
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+            case .unavailable:
+                Label(
+                    "Weather unavailable",
+                    systemImage: "cloud.slash"
+                )
+                .foregroundStyle(.secondary)
+                Button {
+                    Task { await loadWeather() }
+                } label: {
+                    Label("Try again", systemImage: "arrow.clockwise")
+                }
+            }
+        }
+    }
+
+    private func weatherReport(
+        _ report: AviationWeatherReport
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(report.icaoID)
+                    .font(.subheadline.monospaced())
+                    .fontWeight(.semibold)
+                if let category = report.flightCategory {
+                    Text(category)
+                        .font(.caption)
+                        .foregroundStyle(weatherColor(category))
+                }
+                Spacer()
+                if let observationTime = report.observationTime {
+                    Text(observationTime, style: .relative)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Text(weatherSummary(report))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(report.rawObservation)
+                .font(.caption.monospaced())
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.vertical, 3)
+    }
+
+    private func weatherSummary(_ report: AviationWeatherReport) -> String {
+        var parts: [String] = []
+        if let speed = report.windSpeedKnots {
+            let direction = report.windDirectionDegrees.map {
+                String(format: "%03d°", $0)
+            } ?? "VRB"
+            let gust = report.windGustKnots.map { " G\($0)" } ?? ""
+            parts.append("Wind \(direction) \(speed)\(gust) kt")
+        }
+        if let temperature = report.temperatureCelsius {
+            parts.append("\(temperature.formatted(.number.precision(.fractionLength(0))))°C")
+        }
+        if let visibility = report.visibility {
+            parts.append("Vis \(visibility)")
+        }
+        if let pressure = report.altimeterHPa {
+            parts.append("QNH \(Int(pressure.rounded()))")
+        }
+        return parts.isEmpty ? "Decoded weather unavailable" : parts.joined(separator: " · ")
+    }
+
+    private func weatherColor(_ category: String) -> Color {
+        switch category.uppercased() {
+        case "VFR": return .green
+        case "MVFR": return .blue
+        case "IFR": return .red
+        case "LIFR": return .purple
+        default: return .secondary
+        }
+    }
+
+    private var weatherStationCodes: [String] {
+        [leg.originIATA, leg.destinationIATA].compactMap { iata in
+            stations.first { $0.iata == iata }?.icao
+        }
+    }
+
+    private func loadWeather() async {
+        guard !weatherStationCodes.isEmpty else {
+            weatherState = .unavailable
+            return
+        }
+        weatherState = .loading
+        do {
+            let reports = try await AviationWeatherService.reports(
+                for: weatherStationCodes
+            )
+            guard !Task.isCancelled else { return }
+            weatherState = .available(reports)
+        } catch {
+            guard !Task.isCancelled else { return }
+            weatherState = .unavailable
         }
     }
 
@@ -2425,26 +2654,46 @@ private struct WAI3LegBriefingEditView: View {
 
 private struct WAI3StayTimingDetail: View {
     let stay: RosterStay
+    let override: RosterStayRoutineOverrideRecord?
+    @ObservedObject var controller: WAIRosterPersonalizationController
 
     var body: some View {
         switch stay.timingStatus {
         case .calculated(let details):
-            LabeledContent(
-                "Wake-up",
-                value: WAI3RosterFormatting.fullWindow(
-                    details.wakeup,
-                    stationIATA: stay.stationIATA,
-                    timeZoneIdentifier: stay.stationTimeZoneIdentifier
+            NavigationLink {
+                WAI3StayRoutineOverrideView(
+                    stay: stay,
+                    details: details,
+                    override: override,
+                    controller: controller
                 )
-            )
-            LabeledContent(
-                "Pick-up",
-                value: WAI3RosterFormatting.fullWindow(
-                    details.pickup,
-                    stationIATA: stay.stationIATA,
-                    timeZoneIdentifier: stay.stationTimeZoneIdentifier
+            } label: {
+                LabeledContent(
+                    "Wake-up",
+                    value: effectiveTime(
+                        details.wakeup,
+                        keyPath: \.wakeup
+                    )
                 )
-            )
+            }
+            .accessibilityIdentifier("wai3.stay.wakeupLink")
+            NavigationLink {
+                WAI3StayRoutineOverrideView(
+                    stay: stay,
+                    details: details,
+                    override: override,
+                    controller: controller
+                )
+            } label: {
+                LabeledContent(
+                    "Pick-up",
+                    value: effectiveTime(
+                        details.pickup,
+                        keyPath: \.pickup
+                    )
+                )
+            }
+            .accessibilityIdentifier("wai3.stay.pickupLink")
             LabeledContent(
                 "Report",
                 value: WAI3RosterFormatting.absoluteDateTime(
@@ -2474,6 +2723,13 @@ private struct WAI3StayTimingDetail: View {
                     systemImage: "exclamationmark.triangle"
                 )
                 .foregroundStyle(.orange)
+            }
+            if override != nil {
+                Label(
+                    "Adjusted for this stay",
+                    systemImage: "slider.horizontal.3"
+                )
+                .foregroundStyle(.blue)
             }
         case .nextDepartureMissing:
             status(
@@ -2508,6 +2764,27 @@ private struct WAI3StayTimingDetail: View {
         }
     }
 
+    private func effectiveTime(
+        _ defaultWindow: TimeCalculationWindow,
+        keyPath: KeyPath<RosterStayRoutine, Date>
+    ) -> String {
+        if let routine = RosterStayRoutineBuilder.routine(
+            for: stay,
+            override: override
+        ), routine.usesOverride {
+            return WAI3RosterFormatting.absoluteDateTime(
+                routine[keyPath: keyPath],
+                stationIATA: stay.stationIATA,
+                timeZoneIdentifier: stay.stationTimeZoneIdentifier
+            )
+        }
+        return WAI3RosterFormatting.fullWindow(
+            defaultWindow,
+            stationIATA: stay.stationIATA,
+            timeZoneIdentifier: stay.stationTimeZoneIdentifier
+        )
+    }
+
     private func transferLabel(_ details: TimeCalculationDetails) -> String {
         if details.usesTransportRange {
             return "\(details.minimumTransportMinutes)-\(details.maximumTransportMinutes) min"
@@ -2521,6 +2798,141 @@ private struct WAI3StayTimingDetail: View {
     ) -> some View {
         Label(message, systemImage: systemImage)
             .foregroundStyle(.secondary)
+    }
+}
+
+private struct WAI3StayRoutineOverrideView: View {
+    @Environment(\.dismiss) private var dismiss
+    let stay: RosterStay
+    let details: TimeCalculationDetails
+    let override: RosterStayRoutineOverrideRecord?
+    @ObservedObject var controller: WAIRosterPersonalizationController
+
+    @State private var wakeup: Date
+    @State private var pickup: Date
+
+    init(
+        stay: RosterStay,
+        details: TimeCalculationDetails,
+        override: RosterStayRoutineOverrideRecord?,
+        controller: WAIRosterPersonalizationController
+    ) {
+        self.stay = stay
+        self.details = details
+        self.override = override
+        self.controller = controller
+        let routine = RosterStayRoutineBuilder.routine(
+            for: stay,
+            override: override
+        )
+        _wakeup = State(initialValue: routine?.wakeup ?? details.wakeup.earliest)
+        _pickup = State(initialValue: routine?.pickup ?? details.pickup.earliest)
+    }
+
+    var body: some View {
+        Form {
+            Section("This stay") {
+                LabeledContent(
+                    "Report",
+                    value: WAI3RosterFormatting.absoluteDateTime(
+                        details.report,
+                        stationIATA: stay.stationIATA,
+                        timeZoneIdentifier: stay.stationTimeZoneIdentifier
+                    )
+                )
+                DatePicker(
+                    "Wake-up",
+                    selection: $wakeup,
+                    displayedComponents: [.hourAndMinute]
+                )
+                .accessibilityIdentifier("wai3.stay.wakeup")
+                DatePicker(
+                    "Pick-up",
+                    selection: $pickup,
+                    displayedComponents: [.hourAndMinute]
+                )
+                .accessibilityIdentifier("wai3.stay.pickup")
+
+                if resolvedTimes == nil {
+                    Label(
+                        "Wake-up must be before pick-up",
+                        systemImage: "exclamationmark.triangle"
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(.orange)
+                }
+            }
+
+            if override != nil {
+                Section {
+                    Button("Use calculated times", action: useCalculatedTimes)
+                }
+            }
+        }
+        .environment(\.timeZone, stayTimeZone)
+        .navigationTitle("Adjust hotel routine")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") { dismiss() }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save", action: save)
+                    .disabled(controller.state != .ready || resolvedTimes == nil)
+            }
+        }
+        .alert(
+            "Hotel routine not saved",
+            isPresented: saveFailureBinding
+        ) {
+            Button("OK", role: .cancel) {
+                controller.clearSaveFailure()
+            }
+        } message: {
+            Text("The previous times were kept.")
+        }
+    }
+
+    private var resolvedTimes: (wakeup: Date, pickup: Date)? {
+        WAI3RoutineTimeResolver.resolvedPair(
+            wakeupClock: wakeup,
+            pickupClock: pickup,
+            report: details.report,
+            timeZoneIdentifier: stay.stationTimeZoneIdentifier ?? "UTC"
+        )
+    }
+
+    private var stayTimeZone: TimeZone {
+        TimeZone(identifier: stay.stationTimeZoneIdentifier ?? "UTC") ?? .gmt
+    }
+
+    private var saveFailureBinding: Binding<Bool> {
+        Binding(
+            get: { controller.saveFailed },
+            set: { isPresented in
+                if !isPresented {
+                    controller.clearSaveFailure()
+                }
+            }
+        )
+    }
+
+    private func save() {
+        guard let resolvedTimes else { return }
+        if controller.setStayRoutineOverride(
+            for: stay.id,
+            report: details.report,
+            wakeup: resolvedTimes.wakeup,
+            pickup: resolvedTimes.pickup
+        ) {
+            dismiss()
+        }
+    }
+
+    private func useCalculatedTimes() {
+        if controller.clearStayRoutineOverride(for: stay.id) {
+            dismiss()
+        }
     }
 }
 

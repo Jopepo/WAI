@@ -203,7 +203,7 @@ final class WAIUITests: XCTestCase {
         scrollToEarlierContentUntilAccessible(editBriefing, in: app)
         editBriefing.tap()
         XCTAssertTrue(
-            app.navigationBars["TP0754 briefing"]
+            app.navigationBars["TP0754"]
                 .waitForExistence(timeout: 3)
         )
         let briefingTime = app.buttons["Briefing"]
@@ -216,7 +216,7 @@ final class WAIUITests: XCTestCase {
         assertHorizontallyContained(hours, in: app)
         assertHorizontallyContained(minutes, in: app)
         attachScreenshot(named: "WAI 3 dark accessibility briefing")
-        app.navigationBars["TP0754 briefing"].buttons.firstMatch.tap()
+        app.navigationBars["TP0754"].buttons.firstMatch.tap()
 
         app.buttons["Done"].tap()
 
@@ -257,7 +257,7 @@ final class WAIUITests: XCTestCase {
         outboundDuty.tap()
 
         let adjustHomeRoutine = app.descendants(matching: .any)[
-            "wai3.homeRoutine.adjust"
+            "wai3.homeRoutine.wakeupLink"
         ]
         scrollUntilAccessible(adjustHomeRoutine, in: app)
         adjustHomeRoutine.tap()
@@ -272,10 +272,8 @@ final class WAIUITests: XCTestCase {
             app.descendants(matching: .any)["wai3.homeRoutine.pickup"].exists
         )
         app.buttons["Save"].tap()
-        XCTAssertTrue(
-            app.staticTexts["Adjusted for this duty"]
-                .waitForExistence(timeout: 2)
-        )
+        let adjustedHomeRoutine = app.staticTexts["Adjusted for this duty"]
+        scrollUntilAccessible(adjustedHomeRoutine, in: app)
 
         let editBriefing = app.descendants(matching: .any)[
             "wai3.briefing.edit.fixture-outbound-leg"
@@ -284,7 +282,7 @@ final class WAIUITests: XCTestCase {
         editBriefing.tap()
 
         XCTAssertTrue(
-            app.navigationBars["TP0754 briefing"]
+            app.navigationBars["TP0754"]
                 .waitForExistence(timeout: 2)
         )
         let pax = app.descendants(matching: .any)["wai3.briefing.pax"]
@@ -322,16 +320,9 @@ final class WAIUITests: XCTestCase {
         password.typeText("7421")
         app.buttons["Save"].tap()
 
-        let paxValue = app.descendants(matching: .any)[
-            "wai3.briefing.paxValue.fixture-outbound-leg"
-        ]
-        XCTAssertTrue(paxValue.waitForExistence(timeout: 2))
-        XCTAssertTrue(paxValue.label.contains("166"))
-        let passwordStatus = app.descendants(matching: .any)[
-            "wai3.briefing.passwordStatus.fixture-outbound-leg"
-        ]
-        XCTAssertTrue(passwordStatus.waitForExistence(timeout: 2))
-        XCTAssertTrue(passwordStatus.label.contains("Saved"))
+        scrollToEarlierContentUntilVisible(editBriefing, in: app)
+        XCTAssertTrue(editBriefing.label.contains("Pax 166"))
+        XCTAssertTrue(editBriefing.label.contains("Password Saved"))
         XCTAssertTrue(
             app.descendants(matching: .any)["wai3.briefing.calendarSynced"]
                 .waitForExistence(timeout: 2)
@@ -383,7 +374,14 @@ final class WAIUITests: XCTestCase {
             app.swipeUp()
         }
         XCTAssertTrue(element.waitForExistence(timeout: 2))
-        XCTAssertTrue(element.isHittable)
+        let hittable = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "hittable == true"),
+            object: element
+        )
+        XCTAssertEqual(
+            XCTWaiter.wait(for: [hittable], timeout: 2),
+            .completed
+        )
     }
 
     private func scrollToEarlierContentUntilAccessible(
@@ -397,7 +395,25 @@ final class WAIUITests: XCTestCase {
             app.swipeDown()
         }
         XCTAssertTrue(element.waitForExistence(timeout: 2))
-        XCTAssertTrue(element.isHittable)
+        let hittable = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "hittable == true"),
+            object: element
+        )
+        XCTAssertEqual(
+            XCTWaiter.wait(for: [hittable], timeout: 2),
+            .completed
+        )
+    }
+
+    private func scrollToEarlierContentUntilVisible(
+        _ element: XCUIElement,
+        in app: XCUIApplication,
+        attempts: Int = 8
+    ) {
+        for _ in 0..<attempts where !element.exists {
+            app.swipeDown()
+        }
+        XCTAssertTrue(element.waitForExistence(timeout: 2))
     }
 
     private func assertHorizontallyContained(

@@ -181,6 +181,14 @@ struct RosterPersonalizationControllerTests {
                 leaveHome: now.addingTimeInterval(-50 * 60)
             )
         )
+        #expect(
+            controller.setStayRoutineOverride(
+                for: "stay-1",
+                report: now,
+                wakeup: now.addingTimeInterval(-110 * 60),
+                pickup: now.addingTimeInterval(-45 * 60)
+            )
+        )
 
         let saved = try #require(store.snapshot)
         #expect(saved.homeRoutine?.baseIATA == "LIS")
@@ -192,6 +200,9 @@ struct RosterPersonalizationControllerTests {
         #expect(saved.homeRoutineOverrides.first?.dutyID == "duty-1")
         #expect(saved.homeRoutineOverrides.first?.pickupLeadMinutes == 50)
         #expect(saved.homeRoutineOverrides.first?.wakeupLeadMinutes == 125)
+        #expect(saved.stayRoutineOverrides.first?.stayID == "stay-1")
+        #expect(saved.stayRoutineOverrides.first?.pickupLeadMinutes == 45)
+        #expect(saved.stayRoutineOverrides.first?.wakeupLeadMinutes == 110)
         #expect(store.savedOwner == ownerID)
 
         let restored = makeController(store: store)
@@ -201,6 +212,10 @@ struct RosterPersonalizationControllerTests {
         #expect(
             restored.homeRoutineOverride(for: "duty-1")
                 == saved.homeRoutineOverrides.first
+        )
+        #expect(
+            restored.stayRoutineOverride(for: "stay-1")
+                == saved.stayRoutineOverrides.first
         )
     }
 
@@ -215,6 +230,7 @@ struct RosterPersonalizationControllerTests {
         )
 
         #expect(snapshot.homeRoutineOverrides.isEmpty)
+        #expect(snapshot.stayRoutineOverrides.isEmpty)
         #expect(snapshot.isValid)
     }
 
