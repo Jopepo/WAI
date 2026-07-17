@@ -21,6 +21,7 @@ struct WAI3CrewWorkspaceView: View {
     @State private var showingHomeRoutineSettings = false
     @State private var selectedDuty: WAI3DutySelection?
     @State private var selectedRoutineEditor: WAI3RoutineEditorSelection?
+    @State private var todayScrollRequest = 0
 
     var body: some View {
         TabView {
@@ -30,11 +31,12 @@ struct WAI3CrewWorkspaceView: View {
                     .toolbar {
                         ToolbarItemGroup(placement: .topBarTrailing) {
                             Button {
-                                showingHomeRoutineSettings = true
+                                todayScrollRequest += 1
                             } label: {
-                                Image(systemName: "house")
+                                Image(systemName: "calendar")
                             }
-                            .accessibilityLabel("Home routine settings")
+                            .accessibilityLabel("Go to today")
+                            .accessibilityIdentifier("wai3.roster.today")
 
                             Button {
                                 showingFileImporter = true
@@ -298,6 +300,17 @@ struct WAI3CrewWorkspaceView: View {
                         in: archive,
                         stays: Array(staysByDuty.values)
                     ) {
+                        proxy.scrollTo(dutyID, anchor: .top)
+                    }
+                }
+                .onChange(of: todayScrollRequest) {
+                    guard let dutyID = initialDutyID(
+                        in: archive,
+                        stays: Array(staysByDuty.values)
+                    ) else {
+                        return
+                    }
+                    withAnimation(.easeInOut(duration: 0.25)) {
                         proxy.scrollTo(dutyID, anchor: .top)
                     }
                 }
