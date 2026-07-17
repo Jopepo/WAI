@@ -49,7 +49,7 @@ struct RosterDutyAnalysisTests {
 
         #expect(firstAnalysis.rosterSpanMinutes == 315)
         #expect(firstAnalysis.legs.first?.blockMinutes == 225)
-        #expect(secondAnalysis.intervalBefore == .measured(minutes: 2_565))
+        #expect(secondAnalysis.intervalBefore == .measured(minutes: 2_655))
     }
 
     @Test func unresolvedStationTimeDoesNotInventBlockDuration() throws {
@@ -122,7 +122,7 @@ struct RosterDutyAnalysisTests {
             RosterDutyAnalyzer.analyze([first, second]).last
         )
 
-        #expect(analysis.intervalBefore == .overlap(minutes: 30))
+        #expect(analysis.intervalBefore == .measured(minutes: 180))
 
         let attention = RosterPeriodAnalyzer.attention(
             duties: [first, second],
@@ -164,7 +164,7 @@ struct RosterDutyAnalysisTests {
                 .first { $0.dutyID == "second" }
         )
 
-        #expect(result.intervalBefore == .measured(minutes: 4_020))
+        #expect(result.intervalBefore == .measured(minutes: 4_260))
     }
 
     @Test func unknownInterveningActivityPreventsRestInference() throws {
@@ -254,8 +254,105 @@ struct RosterDutyAnalysisTests {
         #expect(summary.resolvedBlockMinutes == 120)
         #expect(summary.unresolvedLegCount == 0)
         #expect(summary.measuredIntervalCount == 1)
-        #expect(summary.shortestMeasuredIntervalMinutes == 1_140)
+        #expect(summary.shortestMeasuredIntervalMinutes == 1_380)
         #expect(summary.overlapCount == 0)
+    }
+
+    @Test func baseRestUsesChocksAndFourHourTransition() throws {
+        let previous = flightDuty(
+            id: "previous",
+            start: utcDate(2026, 7, 1, 8, 0),
+            end: utcDate(2026, 7, 1, 10, 30),
+            legs: [
+                leg(
+                    id: "mad-lis",
+                    origin: "MAD",
+                    destination: "LIS",
+                    departure: resolvedUTC(2026, 7, 1, 9, 0),
+                    arrival: resolvedUTC(2026, 7, 1, 10, 0)
+                )
+            ]
+        )
+        let current = flightDuty(
+            id: "current",
+            start: utcDate(2026, 7, 2, 2, 0),
+            end: utcDate(2026, 7, 2, 5, 0),
+            legs: [
+                leg(
+                    id: "lis-mad",
+                    origin: "LIS",
+                    destination: "MAD",
+                    departure: resolvedUTC(2026, 7, 2, 3, 0),
+                    arrival: resolvedUTC(2026, 7, 2, 4, 0)
+                )
+            ]
+        )
+
+        let analyses = RosterDutyAnalyzer.analyze(
+            [previous, current],
+            stations: [
+                fixedStation("LIS", timeZone: "Europe/Lisbon", minutes: 30),
+                fixedStation("MAD", timeZone: "Europe/Madrid", minutes: 30)
+            ],
+            baseIATA: "LIS"
+        )
+        let analysis = try #require(
+            analyses.first { $0.dutyID == "current" }
+        )
+        let rest = try #require(analysis.restAssessments.first)
+
+        #expect(rest.location == .base)
+        #expect(rest.stationIATA == "LIS")
+        #expect(rest.availableChocksMinutes == 1_020)
+        #expect(rest.minimumRestMinutes == 780)
+        #expect(rest.transitionMinutes == 240)
+        #expect(rest.requiredChocksMinutes == 1_020)
+        #expect(rest.compliance == .compliant(marginMinutes: 0))
+    }
+
+    @Test func awayRestUsesCPHTransportAndThreeHourTransition() throws {
+        let rotation = flightDuty(
+            id: "cph-rotation",
+            start: utcDate(2026, 7, 1, 9, 0),
+            end: utcDate(2026, 7, 2, 10, 0),
+            hotelCode: "CPHRDS",
+            legs: [
+                leg(
+                    id: "lis-cph",
+                    origin: "LIS",
+                    destination: "CPH",
+                    departure: resolvedUTC(2026, 7, 1, 10, 0),
+                    arrival: resolvedUTC(2026, 7, 1, 12, 0)
+                ),
+                leg(
+                    id: "cph-lis",
+                    origin: "CPH",
+                    destination: "LIS",
+                    departure: resolvedUTC(2026, 7, 2, 7, 0),
+                    arrival: resolvedUTC(2026, 7, 2, 9, 0)
+                )
+            ]
+        )
+
+        let analysis = try #require(
+            RosterDutyAnalyzer.analyze(
+                [rotation],
+                stations: [
+                    fixedStation("LIS", timeZone: "Europe/Lisbon", minutes: 30),
+                    fixedStation("CPH", timeZone: "Europe/Copenhagen", minutes: 35)
+                ],
+                baseIATA: "LIS"
+            ).first
+        )
+        let rest = try #require(analysis.restAssessments.first)
+
+        #expect(rest.location == .away)
+        #expect(rest.stationIATA == "CPH")
+        #expect(rest.availableChocksMinutes == 1_140)
+        #expect(rest.minimumRestMinutes == 660)
+        #expect(rest.transitionMinutes == 250)
+        #expect(rest.requiredChocksMinutes == 910)
+        #expect(rest.compliance == .compliant(marginMinutes: 230))
     }
 
     private func flightDuty(
@@ -330,6 +427,33 @@ struct RosterDutyAnalysisTests {
             passengerLoad: nil,
             cosmicRadiation: nil,
             crew: []
+        )
+    }
+
+    private func fixedStation(
+        _ iata: String,
+        timeZone: String,
+        minutes: Int
+    ) -> Station {
+        Station(
+            iata: iata,
+            icao: "T\(iata)",
+            city: iata,
+            country: "Test",
+            timeZone: timeZone,
+            standardUtcOffset: "+00:00",
+            summerUtcOffset: "+00:00",
+            defaultRule: TransportRule(
+                type: "fixed",
+                label: nil,
+                transportMinutes: minutes,
+                minTransportMinutes: nil,
+                maxTransportMinutes: nil,
+                rules: nil,
+                conditions: nil
+            ),
+            alternatives: [],
+            holidays: []
         )
     }
 

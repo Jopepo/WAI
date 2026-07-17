@@ -150,6 +150,15 @@ struct RosterLeg: Codable, Equatable, Sendable, Identifiable {
     let cosmicRadiation: Double?
     let crew: [RosterCrewMember]
 
+    var blockMinutes: Int? {
+        guard let departure = departure.instant,
+              let arrival = arrival.instant,
+              arrival > departure else {
+            return nil
+        }
+        return Int(arrival.timeIntervalSince(departure) / 60)
+    }
+
     var isValid: Bool {
         guard RosterValueFormat.isBoundedText(id, maximumBytes: 256),
               RosterValueFormat.isBoundedText(

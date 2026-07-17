@@ -39,6 +39,13 @@ struct TimeCalculationDetails: Equatable, Sendable {
     let appliedRuleLabel: String?
 }
 
+struct TransportMinutesWindow: Equatable, Sendable {
+    let minimum: Int
+    let maximum: Int
+
+    var isExact: Bool { minimum == maximum }
+}
+
 struct TimeCalculator {
     static let lisTimeZone = TimeZone(identifier: "Europe/Lisbon")!
     static let utcTimeZone = TimeZone(identifier: "GMT")!
@@ -125,6 +132,36 @@ struct TimeCalculator {
             defaultAlternativeTag: defaultAlternativeTag,
             stationHolidays: stationHolidays
         )
+    }
+
+    static func defaultTransportMinutes(
+        departure: Date,
+        station: Station,
+        stationHolidays: [StationHoliday] = []
+    ) -> TransportMinutesWindow? {
+        guard let stationTimeZone = TimeZone(identifier: station.timeZone),
+              let selection = transportSelection(
+                departure: departure,
+                station: station,
+                stationTimeZone: stationTimeZone,
+                selectedAlternative: "__WAI_DEFAULT__",
+                defaultAlternativeTag: "__WAI_DEFAULT__",
+                stationHolidays: stationHolidays
+              ) else {
+            return nil
+        }
+        switch selection {
+        case .exact(let minutes, _):
+            return TransportMinutesWindow(
+                minimum: minutes,
+                maximum: minutes
+            )
+        case .range(let minimum, let maximum, _):
+            return TransportMinutesWindow(
+                minimum: minimum,
+                maximum: maximum
+            )
+        }
     }
 
     static func calculateDetails(

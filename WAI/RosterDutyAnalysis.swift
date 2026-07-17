@@ -15,6 +15,37 @@ enum RosterIntervalAnalysis: Equatable, Sendable {
     case measured(minutes: Int)
     case overlap(minutes: Int)
     case interruptedByActivity
+    case unresolvedChocks
+}
+
+enum RosterRestLocation: Equatable, Sendable {
+    case base
+    case away
+}
+
+enum RosterRestCompliance: Equatable, Sendable {
+    case compliant(marginMinutes: Int)
+    case shortfall(minutes: Int)
+    case needsReview
+}
+
+struct RosterRestAssessment: Equatable, Sendable, Identifiable {
+    let previousDutyID: String
+    let currentDutyID: String
+    let previousPeriodIndex: Int
+    let currentPeriodIndex: Int
+    let stationIATA: String
+    let location: RosterRestLocation
+    let availableChocksMinutes: Int
+    let minimumRestMinutes: Int
+    let transitionMinutes: Int?
+    let requiredChocksMinutes: Int?
+    let compliance: RosterRestCompliance
+    let reviewReasons: [String]
+
+    var id: String {
+        "\(previousDutyID)|\(previousPeriodIndex)|\(currentDutyID)|\(currentPeriodIndex)"
+    }
 }
 
 struct RosterFlightPeriodAnalysis: Equatable, Sendable, Identifiable {
@@ -36,6 +67,7 @@ struct RosterDutyAnalysis: Equatable, Sendable, Identifiable {
     let intervalBefore: RosterIntervalAnalysis
     let legs: [RosterLegAnalysis]
     let flightPeriods: [RosterFlightPeriodAnalysis]
+    let restAssessments: [RosterRestAssessment]
 
     var id: String {
         dutyID
@@ -183,15 +215,16 @@ struct RosterPeriodAnalyzer {
         let flightDuties = orderedDuties.filter { $0.kind == .flight }
         let overlapConflicts = flightDuties.indices.dropFirst().compactMap {
             index -> RosterOverlapConflict? in
+            let previous = flightDuties[index - 1]
             let current = flightDuties[index]
-            guard let analysis = analyses[current.id],
-                  case .overlap(let minutes) = analysis.intervalBefore else {
+            let overlap = previous.end.timeIntervalSince(current.start)
+            guard overlap > 0 else {
                 return nil
             }
             return RosterOverlapConflict(
-                previousDutyID: flightDuties[index - 1].id,
+                previousDutyID: previous.id,
                 currentDutyID: current.id,
-                minutes: minutes
+                minutes: Int(overlap / 60)
             )
         }
 
@@ -208,10 +241,23 @@ struct RosterDutyAnalyzer {
         "DOE"
     ]
 
-    static func analyze(_ duties: [RosterDuty]) -> [RosterDutyAnalysis] {
+    static func analyze(
+        _ duties: [RosterDuty],
+        stations: [Station] = [],
+        baseIATA: String? = nil
+    ) -> [RosterDutyAnalysis] {
         let sorted = duties.sorted {
             $0.start == $1.start ? $0.id < $1.id : $0.start < $1.start
         }
+        let restAssessments = assessRests(
+            in: sorted,
+            stations: stations,
+            baseIATA: baseIATA
+        )
+        let restsByDuty = Dictionary(
+            grouping: restAssessments,
+            by: \.currentDutyID
+        )
         var previousFlight: RosterDuty?
         var interveningActivityNeedsReview = false
         var results: [RosterDutyAnalysis] = []
@@ -232,12 +278,10 @@ struct RosterDutyAnalyzer {
                     if interveningActivityNeedsReview {
                         intervalBefore = .interruptedByActivity
                     } else {
-                        let interval = duty.start.timeIntervalSince(
-                            previousFlight.end
+                        intervalBefore = chocksInterval(
+                            after: previousFlight,
+                            before: duty
                         )
-                        intervalBefore = interval >= 0
-                            ? .measured(minutes: wholeMinutes(interval))
-                            : .overlap(minutes: wholeMinutes(-interval))
                     }
                 } else {
                     intervalBefore = .firstFlight
@@ -260,7 +304,8 @@ struct RosterDutyAnalyzer {
                     ),
                     intervalBefore: intervalBefore,
                     legs: legs,
-                    flightPeriods: flightPeriods(for: duty)
+                    flightPeriods: flightPeriods(for: duty),
+                    restAssessments: restsByDuty[duty.id] ?? []
                 )
             )
         }
@@ -321,12 +366,7 @@ struct RosterDutyAnalyzer {
     }
 
     private static func blockMinutes(for leg: RosterLeg) -> Int? {
-        guard let departure = leg.departure.instant,
-              let arrival = leg.arrival.instant,
-              arrival > departure else {
-            return nil
-        }
-        return wholeMinutes(arrival.timeIntervalSince(departure))
+        leg.blockMinutes
     }
 
     private static func flyingWindowMinutes(
@@ -354,5 +394,277 @@ struct RosterDutyAnalyzer {
 
     private static func wholeMinutes(_ interval: TimeInterval) -> Int {
         max(0, Int(interval / 60))
+    }
+
+    private struct RestPeriod {
+        let duty: RosterDuty
+        let index: Int
+        let legs: [RosterLeg]
+        let serviceStart: Date
+        let serviceEnd: Date
+    }
+
+    private static func chocksInterval(
+        after previous: RosterDuty,
+        before current: RosterDuty
+    ) -> RosterIntervalAnalysis {
+        guard let arrival = previous.legs.last?.arrival.instant,
+              let departure = current.legs.first?.departure.instant else {
+            return .unresolvedChocks
+        }
+        let interval = departure.timeIntervalSince(arrival)
+        return interval >= 0
+            ? .measured(minutes: wholeMinutes(interval))
+            : .overlap(minutes: wholeMinutes(-interval))
+    }
+
+    private static func assessRests(
+        in duties: [RosterDuty],
+        stations: [Station],
+        baseIATA: String?
+    ) -> [RosterRestAssessment] {
+        guard !stations.isEmpty,
+              let normalizedBase = baseIATA?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .uppercased(),
+              normalizedBase.utf8.count == 3 else {
+            return []
+        }
+        let stationsByIATA = Dictionary(
+            uniqueKeysWithValues: stations.map { ($0.iata.uppercased(), $0) }
+        )
+        let periods = duties.flatMap(restPeriods)
+        guard periods.count > 1 else { return [] }
+
+        return periods.indices.dropFirst().compactMap { index in
+            restAssessment(
+                previous: periods[index - 1],
+                current: periods[index],
+                duties: duties,
+                stationsByIATA: stationsByIATA,
+                baseIATA: normalizedBase
+            )
+        }
+    }
+
+    private static func restPeriods(for duty: RosterDuty) -> [RestPeriod] {
+        guard duty.kind == .flight, !duty.legs.isEmpty else { return [] }
+        let groups: [[RosterLeg]]
+        if let boundary = hotelBoundaryIndex(in: duty) {
+            groups = [
+                Array(duty.legs[...boundary]),
+                Array(duty.legs[(boundary + 1)...])
+            ]
+        } else {
+            groups = [duty.legs]
+        }
+
+        return groups.enumerated().compactMap { offset, legs in
+            guard let firstDeparture = legs.first?.departure.instant,
+                  let lastArrival = legs.last?.arrival.instant else {
+                return nil
+            }
+            let serviceStart = offset == 0
+                ? duty.start
+                : firstDeparture.addingTimeInterval(-60 * 60)
+            let serviceEnd = offset == groups.count - 1
+                ? duty.end
+                : lastArrival.addingTimeInterval(30 * 60)
+            guard serviceEnd > serviceStart else { return nil }
+            return RestPeriod(
+                duty: duty,
+                index: offset + 1,
+                legs: legs,
+                serviceStart: serviceStart,
+                serviceEnd: serviceEnd
+            )
+        }
+    }
+
+    private static func restAssessment(
+        previous: RestPeriod,
+        current: RestPeriod,
+        duties: [RosterDuty],
+        stationsByIATA: [String: Station],
+        baseIATA: String
+    ) -> RosterRestAssessment? {
+        guard let previousArrival = previous.legs.last?.arrival.instant,
+              let currentDeparture = current.legs.first?.departure.instant,
+              let stationIATA = previous.legs.last?.destinationIATA,
+              current.legs.first?.originIATA == stationIATA else {
+            return nil
+        }
+
+        let available = max(
+            0,
+            Int(currentDeparture.timeIntervalSince(previousArrival) / 60)
+        )
+        let location: RosterRestLocation = stationIATA == baseIATA
+            ? .base
+            : .away
+        let serviceMinutes = wholeMinutes(
+            previous.serviceEnd.timeIntervalSince(previous.serviceStart)
+        )
+        var minimumRest = max(
+            location == .base ? 13 * 60 : 11 * 60,
+            serviceMinutes
+        )
+        var reasons: [String] = []
+
+        if overlapsLisbonCircadian(
+            from: previous.serviceStart,
+            to: previous.serviceEnd
+        ) {
+            minimumRest += 2 * 60
+        }
+
+        let offsetDifference = timeZoneDifferenceHours(
+            for: previous,
+            stationsByIATA: stationsByIATA
+        )
+        if location == .away, let offsetDifference, offsetDifference >= 3 {
+            minimumRest = max(
+                minimumRest,
+                14 * 60 + max(1, offsetDifference - 2) * 30
+            )
+            if offsetDifference > 6 {
+                minimumRest = max(minimumRest, 24 * 60)
+                reasons.append("Confirm the required local night")
+            }
+        }
+
+        let transition: Int?
+        switch location {
+        case .base:
+            transition = 4 * 60
+        case .away:
+            if let station = stationsByIATA[stationIATA],
+               let transport = TimeCalculator.defaultTransportMinutes(
+                departure: currentDeparture,
+                station: station,
+                stationHolidays: station.holidays ?? []
+               ) {
+                transition = 3 * 60 + 2 * transport.maximum
+                if !transport.isExact || !station.alternatives.isEmpty {
+                    reasons.append("Confirm the applicable transfer option")
+                }
+            } else {
+                transition = nil
+                reasons.append("Transition time is unavailable")
+            }
+        }
+
+        var required = transition.map { minimumRest + $0 }
+        if location == .away,
+           let offsetDifference,
+           offsetDifference >= 8 {
+            required = max(required ?? 0, 36 * 60)
+            reasons.append("Confirm the two required local nights")
+        }
+        if location == .base,
+           previous.legs.contains(where: { ($0.blockMinutes ?? 0) >= 9 * 60 + 30 }) {
+            reasons.append("Confirm whether additional rest (RAD) applies")
+        }
+        if previous.duty.id != current.duty.id,
+           hasUnknownInterveningActivity(
+            after: previous.duty,
+            before: current.duty,
+            in: duties
+           ) {
+            reasons.append("An intervening activity needs review")
+        }
+
+        let compliance: RosterRestCompliance
+        if let required, available < required {
+            compliance = .shortfall(minutes: required - available)
+        } else if let required, reasons.isEmpty {
+            compliance = .compliant(marginMinutes: available - required)
+        } else {
+            compliance = .needsReview
+        }
+
+        return RosterRestAssessment(
+            previousDutyID: previous.duty.id,
+            currentDutyID: current.duty.id,
+            previousPeriodIndex: previous.index,
+            currentPeriodIndex: current.index,
+            stationIATA: stationIATA,
+            location: location,
+            availableChocksMinutes: available,
+            minimumRestMinutes: minimumRest,
+            transitionMinutes: transition,
+            requiredChocksMinutes: required,
+            compliance: compliance,
+            reviewReasons: reasons
+        )
+    }
+
+    private static func hasUnknownInterveningActivity(
+        after previous: RosterDuty,
+        before current: RosterDuty,
+        in duties: [RosterDuty]
+    ) -> Bool {
+        duties.contains { duty in
+            duty.kind == .activity
+            && duty.start >= previous.end
+            && duty.end <= current.start
+            && !knownNonOperationalActivities.contains(
+                duty.activityCode.uppercased()
+            )
+        }
+    }
+
+    private static func timeZoneDifferenceHours(
+        for period: RestPeriod,
+        stationsByIATA: [String: Station]
+    ) -> Int? {
+        guard let first = period.legs.first,
+              let last = period.legs.last,
+              let startZone = stationsByIATA[first.originIATA]
+                .flatMap({ TimeZone(identifier: $0.timeZone) }),
+              let endZone = stationsByIATA[last.destinationIATA]
+                .flatMap({ TimeZone(identifier: $0.timeZone) }) else {
+            return nil
+        }
+        let difference = abs(
+            endZone.secondsFromGMT(for: period.serviceEnd)
+                - startZone.secondsFromGMT(for: period.serviceStart)
+        )
+        return difference / 3_600
+    }
+
+    private static func overlapsLisbonCircadian(
+        from start: Date,
+        to end: Date
+    ) -> Bool {
+        guard end > start,
+              let lisbon = TimeZone(identifier: "Europe/Lisbon") else {
+            return false
+        }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = lisbon
+        var day = calendar.startOfDay(for: start)
+        let finalDay = calendar.startOfDay(for: end)
+        while day <= finalDay {
+            guard let windowStart = calendar.date(
+                bySettingHour: 2,
+                minute: 0,
+                second: 0,
+                of: day
+            ),
+            let windowEnd = calendar.date(
+                bySettingHour: 6,
+                minute: 0,
+                second: 0,
+                of: day
+            ) else { return false }
+            if start < windowEnd && end > windowStart {
+                return true
+            }
+            guard let next = calendar.date(byAdding: .day, value: 1, to: day)
+            else { return false }
+            day = next
+        }
+        return false
     }
 }

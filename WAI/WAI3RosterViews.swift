@@ -64,6 +64,8 @@ struct WAI3CrewWorkspaceView: View {
 
             WAI3RosterAnalysisView(
                 rosterController: rosterController,
+                stations: dataService.stations,
+                baseIATA: personalizationController.homeRoutine?.baseIATA,
                 refreshCalendarAction: connectCalendar,
                 importRosterAction: { showingFileImporter = true }
             )
@@ -212,7 +214,9 @@ struct WAI3CrewWorkspaceView: View {
         )
         let analysesByDuty = Dictionary(
             uniqueKeysWithValues: RosterDutyAnalyzer.analyze(
-                archive.duties
+                archive.duties,
+                stations: dataService.stations,
+                baseIATA: personalizationController.homeRoutine?.baseIATA
             ).map { ($0.dutyID, $0) }
         )
 
@@ -548,6 +552,8 @@ struct WAI3CrewWorkspaceView: View {
 
 private struct WAI3RosterAnalysisView: View {
     @ObservedObject var rosterController: WAIRosterController
+    let stations: [Station]
+    let baseIATA: String?
     let refreshCalendarAction: () -> Void
     let importRosterAction: () -> Void
 
@@ -585,9 +591,14 @@ private struct WAI3RosterAnalysisView: View {
             let summary = RosterPeriodAnalyzer.summarize(archive.duties)
             let analyses = Dictionary(
                 uniqueKeysWithValues: RosterDutyAnalyzer.analyze(
-                    archive.duties
+                    archive.duties,
+                    stations: stations,
+                    baseIATA: baseIATA
                 ).map { ($0.dutyID, $0) }
             )
+            let rests = archive.duties.compactMap {
+                analyses[$0.id]
+            }.flatMap(\.restAssessments)
             let attention = RosterPeriodAnalyzer.attention(
                 duties: archive.duties,
                 issues: archive.issues
@@ -641,6 +652,14 @@ private struct WAI3RosterAnalysisView: View {
                             systemImage: "exclamationmark.triangle"
                         )
                         .foregroundStyle(.orange)
+                    }
+                }
+
+                if !rests.isEmpty {
+                    Section("Minimum rest") {
+                        ForEach(rests) { rest in
+                            restDisclosure(rest)
+                        }
                     }
                 }
 
@@ -825,7 +844,7 @@ private struct WAI3RosterAnalysisView: View {
         switch interval {
         case .measured(let minutes):
             LabeledContent(
-                "Previous interval",
+                "Chocks to chocks",
                 value: WAI3RosterFormatting.duration(minutes)
             )
         case .overlap(let minutes):
@@ -835,9 +854,81 @@ private struct WAI3RosterAnalysisView: View {
             )
             .foregroundStyle(.orange)
         case .interruptedByActivity:
-            LabeledContent("Previous interval", value: "Needs review")
+            LabeledContent("Chocks to chocks", value: "Needs review")
+        case .unresolvedChocks:
+            LabeledContent("Chocks to chocks", value: "Time zone unresolved")
         case .notApplicable, .firstFlight:
             EmptyView()
+        }
+    }
+
+    private func restDisclosure(_ rest: RosterRestAssessment) -> some View {
+        DisclosureGroup {
+            LabeledContent(
+                "Available chocks to chocks",
+                value: WAI3RosterFormatting.duration(
+                    rest.availableChocksMinutes
+                )
+            )
+            LabeledContent(
+                "Minimum rest",
+                value: WAI3RosterFormatting.duration(
+                    rest.minimumRestMinutes
+                )
+            )
+            if let transition = rest.transitionMinutes {
+                LabeledContent(
+                    "Transition",
+                    value: WAI3RosterFormatting.duration(transition)
+                )
+            }
+            if let required = rest.requiredChocksMinutes {
+                LabeledContent(
+                    "Required chocks to chocks",
+                    value: WAI3RosterFormatting.duration(required)
+                )
+            }
+            ForEach(rest.reviewReasons, id: \.self) { reason in
+                Label(reason, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(
+                        "\(rest.stationIATA) · \(rest.location == .base ? "Base" : "Away")"
+                    )
+                    .fontWeight(.semibold)
+                    Text(restComplianceLabel(rest.compliance))
+                        .font(.caption)
+                        .foregroundStyle(restComplianceColor(rest.compliance))
+                }
+                Spacer()
+            }
+        }
+    }
+
+    private func restComplianceLabel(
+        _ compliance: RosterRestCompliance
+    ) -> String {
+        switch compliance {
+        case .compliant(let margin):
+            return "Compliant · margin \(WAI3RosterFormatting.duration(margin))"
+        case .shortfall(let minutes):
+            return "Short by \(WAI3RosterFormatting.duration(minutes))"
+        case .needsReview:
+            return "Needs review"
+        }
+    }
+
+    private func restComplianceColor(
+        _ compliance: RosterRestCompliance
+    ) -> Color {
+        switch compliance {
+        case .compliant: return .green
+        case .shortfall: return .red
+        case .needsReview: return .orange
         }
     }
 
@@ -1311,7 +1402,7 @@ private struct WAI3DutyRow: View {
             .foregroundStyle(.orange)
         case .measured(let gap):
             durationLabel(
-                "Interval",
+                "Chocks gap",
                 minutes: gap,
                 systemImage: "moon.zzz"
             )
@@ -1319,6 +1410,13 @@ private struct WAI3DutyRow: View {
             Label(
                 "Interval needs activity review",
                 systemImage: "exclamationmark.triangle"
+            )
+            .font(.caption)
+            .foregroundStyle(.orange)
+        case .unresolvedChocks:
+            Label(
+                "Chocks gap needs time-zone review",
+                systemImage: "clock.badge.exclamationmark"
             )
             .font(.caption)
             .foregroundStyle(.orange)
@@ -1521,13 +1619,19 @@ private struct WAI3DutyDetailView: View {
                             .foregroundStyle(.orange)
                         case .measured(let gap):
                             LabeledContent(
-                                "Interval from previous release",
+                                "Chocks to chocks",
                                 value: WAI3RosterFormatting.duration(gap)
                             )
                         case .interruptedByActivity:
                             Label(
                                 "Interval needs activity review",
                                 systemImage: "exclamationmark.triangle"
+                            )
+                            .foregroundStyle(.orange)
+                        case .unresolvedChocks:
+                            Label(
+                                "Chocks interval needs time-zone review",
+                                systemImage: "clock.badge.exclamationmark"
                             )
                             .foregroundStyle(.orange)
                         case .notApplicable, .firstFlight:
@@ -1540,6 +1644,40 @@ private struct WAI3DutyDetailView: View {
                 }
 
                 briefingSection
+
+                if let analysis, !analysis.restAssessments.isEmpty {
+                    Section("Minimum rest") {
+                        ForEach(analysis.restAssessments) { rest in
+                            VStack(alignment: .leading, spacing: 6) {
+                                LabeledContent(
+                                    "Location",
+                                    value: "\(rest.stationIATA) · \(rest.location == .base ? "Base" : "Away")"
+                                )
+                                LabeledContent(
+                                    "Available chocks to chocks",
+                                    value: WAI3RosterFormatting.duration(
+                                        rest.availableChocksMinutes
+                                    )
+                                )
+                                if let required = rest.requiredChocksMinutes {
+                                    LabeledContent(
+                                        "Required chocks to chocks",
+                                        value: WAI3RosterFormatting.duration(
+                                            required
+                                        )
+                                    )
+                                }
+                                restStatusLabel(rest.compliance)
+                                ForEach(rest.reviewReasons, id: \.self) { reason in
+                                    Text(reason)
+                                        .font(.caption)
+                                        .foregroundStyle(.orange)
+                                }
+                            }
+                            .padding(.vertical, 3)
+                        }
+                    }
+                }
 
                 crewSection
 
@@ -1724,6 +1862,29 @@ private struct WAI3DutyDetailView: View {
                 controller: personalizationController,
                 suggestedBaseIATA: duty.legs.first?.originIATA
             )
+        }
+    }
+
+    @ViewBuilder
+    private func restStatusLabel(
+        _ compliance: RosterRestCompliance
+    ) -> some View {
+        switch compliance {
+        case .compliant(let margin):
+            Label(
+                "Compliant · margin \(WAI3RosterFormatting.duration(margin))",
+                systemImage: "checkmark.circle.fill"
+            )
+            .foregroundStyle(.green)
+        case .shortfall(let minutes):
+            Label(
+                "Short by \(WAI3RosterFormatting.duration(minutes))",
+                systemImage: "exclamationmark.triangle.fill"
+            )
+            .foregroundStyle(.red)
+        case .needsReview:
+            Label("Needs review", systemImage: "exclamationmark.triangle")
+                .foregroundStyle(.orange)
         }
     }
 
