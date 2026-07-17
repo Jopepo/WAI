@@ -20,6 +20,7 @@ struct WAI3CrewWorkspaceView: View {
     @State private var showingFileImporter = false
     @State private var showingHomeRoutineSettings = false
     @State private var selectedDuty: WAI3DutySelection?
+    @State private var selectedRoutineEditor: WAI3RoutineEditorSelection?
 
     var body: some View {
         TabView {
@@ -104,6 +105,12 @@ struct WAI3CrewWorkspaceView: View {
                 roomNumberController: roomNumberController,
                 personalizationController: personalizationController,
                 hotelStayStore: hotelStayStore
+            )
+        }
+        .sheet(item: $selectedRoutineEditor) { selection in
+            WAI3RoutineEditorSheet(
+                selection: selection,
+                controller: personalizationController
             )
         }
         .sheet(isPresented: $showingHomeRoutineSettings) {
@@ -229,50 +236,54 @@ struct WAI3CrewWorkspaceView: View {
                     ForEach(groupedDuties(archive.duties), id: \.dateKey) { group in
                         Section(group.title) {
                             ForEach(group.duties) { duty in
-                                Button {
-                                    selectedDuty = WAI3DutySelection(
-                                        duty: duty,
-                                        stay: staysByDuty[duty.id],
-                                        analysis: analysesByDuty[duty.id]
-                                    )
-                                } label: {
-                                    WAI3DutyRow(
-                                        duty: duty,
-                                        stay: staysByDuty[duty.id],
-                                        analysis: analysesByDuty[duty.id],
-                                        homeRoutine: RosterHomeRoutineBuilder
-                                            .routine(
-                                                for: duty,
-                                                settings:
-                                                    personalizationController
-                                                        .homeRoutine,
-                                                override:
-                                                    personalizationController
-                                                        .homeRoutineOverride(
-                                                            for: duty.id
-                                                        )
-                                            ),
-                                        showsHomeRoutineSetup:
-                                            personalizationController
-                                                .homeRoutine == nil
-                                            && personalizationController.state
-                                                != .failedSecureStorage
-                                            && duty.kind == .flight,
-                                        roomNumber: staysByDuty[duty.id].flatMap {
-                                            roomNumberController.roomNumber(for: $0.id)
-                                        },
-                                        stayRoutineOverride: staysByDuty[duty.id]
-                                            .flatMap {
-                                                personalizationController
-                                                    .stayRoutineOverride(
-                                                        for: $0.id
-                                                    )
-                                            }
-                                    )
+                                let stay = staysByDuty[duty.id]
+                                let analysis = analysesByDuty[duty.id]
+                                let homeRoutine = RosterHomeRoutineBuilder.routine(
+                                    for: duty,
+                                    settings: personalizationController.homeRoutine,
+                                    override: personalizationController
+                                        .homeRoutineOverride(for: duty.id)
+                                )
+                                let stayOverride = stay.flatMap {
+                                    personalizationController
+                                        .stayRoutineOverride(for: $0.id)
                                 }
-                                .buttonStyle(.plain)
-                                .accessibilityIdentifier(
-                                    "wai3.roster.duty.\(duty.id)"
+                                WAI3DutyRow(
+                                    duty: duty,
+                                    stay: stay,
+                                    analysis: analysis,
+                                    homeRoutine: homeRoutine,
+                                    showsHomeRoutineSetup:
+                                        personalizationController.homeRoutine == nil
+                                        && personalizationController.state
+                                            != .failedSecureStorage
+                                        && duty.kind == .flight,
+                                    roomNumber: stay.flatMap {
+                                        roomNumberController.roomNumber(for: $0.id)
+                                    },
+                                    stayRoutineOverride: stayOverride,
+                                    openDuty: {
+                                        selectedDuty = WAI3DutySelection(
+                                            duty: duty,
+                                            stay: stay,
+                                            analysis: analysis
+                                        )
+                                    },
+                                    editHomeRoutine: {
+                                        if let homeRoutine {
+                                            selectedRoutineEditor = .home(homeRoutine)
+                                        } else {
+                                            showingHomeRoutineSettings = true
+                                        }
+                                    },
+                                    editStayRoutine: { details in
+                                        guard let stay else { return }
+                                        selectedRoutineEditor = .stay(
+                                            stay: stay,
+                                            details: details,
+                                            override: stayOverride
+                                        )
+                                    }
                                 )
                                 .id(duty.id)
                             }
@@ -814,6 +825,51 @@ private struct WAI3DutySelection: Identifiable {
     }
 }
 
+private enum WAI3RoutineEditorSelection: Identifiable {
+    case home(RosterHomeRoutine)
+    case stay(
+        stay: RosterStay,
+        details: TimeCalculationDetails,
+        override: RosterStayRoutineOverrideRecord?
+    )
+
+    var id: String {
+        switch self {
+        case .home(let routine):
+            return "home-\(routine.dutyID)"
+        case .stay(let stay, _, _):
+            return "stay-\(stay.id)"
+        }
+    }
+}
+
+private struct WAI3RoutineEditorSheet: View {
+    let selection: WAI3RoutineEditorSelection
+    @ObservedObject var controller: WAIRosterPersonalizationController
+
+    var body: some View {
+        NavigationStack {
+            switch selection {
+            case .home(let routine):
+                WAI3HomeRoutineOverrideView(
+                    routine: routine,
+                    controller: controller
+                )
+            case .stay(let stay, let details, let override):
+                WAI3StayRoutineOverrideView(
+                    stay: stay,
+                    details: details,
+                    override: override,
+                    controller: controller
+                )
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+        .accessibilityIdentifier("wai3.routineEditor.sheet")
+    }
+}
+
 private struct WAI3EmptyRosterView: View {
     let isImporting: Bool
     let calendarState: WAIRosterCalendarState
@@ -916,52 +972,84 @@ private struct WAI3DutyRow: View {
     let showsHomeRoutineSetup: Bool
     let roomNumber: String?
     let stayRoutineOverride: RosterStayRoutineOverrideRecord?
+    let openDuty: () -> Void
+    let editHomeRoutine: () -> Void
+    let editStayRoutine: (TimeCalculationDetails) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            dutyHeader
-            dutyMetrics
+            Button(action: openDuty) {
+                VStack(alignment: .leading, spacing: 8) {
+                    dutyHeader
+                    dutyMetrics
 
-            if duty.legs.isEmpty {
-                Text("Activity")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            } else {
-                ForEach(duty.legs) { leg in
-                    legRow(
-                        leg,
-                        blockMinutes: analysis?
-                            .analysis(for: leg.id)?
-                            .blockMinutes
-                    )
+                    if duty.legs.isEmpty {
+                        Text("Activity")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(duty.legs) { leg in
+                            legRow(
+                                leg,
+                                blockMinutes: analysis?
+                                    .analysis(for: leg.id)?
+                                    .blockMinutes
+                            )
+                        }
+                    }
                 }
             }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("wai3.roster.duty.\(duty.id)")
 
             if let homeRoutine {
                 Divider()
-                homeRoutineSummary(homeRoutine)
+                Button(action: editHomeRoutine) {
+                    HStack(spacing: 10) {
+                        homeRoutineSummary(homeRoutine)
+                        Spacer(minLength: 8)
+                        Image(systemName: "slider.horizontal.3")
+                            .foregroundStyle(.blue)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier(
+                    "wai3.roster.homeRoutine.\(duty.id)"
+                )
             } else if showsHomeRoutineSetup {
                 Divider()
-                Label("Set wake-up and pick-up", systemImage: "house")
-                    .font(.caption)
-                    .foregroundStyle(.blue)
+                Button(action: editHomeRoutine) {
+                    Label("Set wake-up and pick-up", systemImage: "house")
+                        .font(.caption)
+                        .foregroundStyle(.blue)
+                }
+                .buttonStyle(.plain)
             }
 
             if let stay {
                 Divider()
+                Button(action: openDuty) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Label(
+                            stay.hotelName ?? stay.hotelCode,
+                            systemImage: "bed.double"
+                        )
+                        .font(.subheadline)
+                        .fontWeight(.medium)
 
-                Label(
-                    stay.hotelName ?? stay.hotelCode,
-                    systemImage: "bed.double"
-                )
-                .font(.subheadline)
-                .fontWeight(.medium)
-
-                if let roomNumber {
-                    Label("Room \(roomNumber)", systemImage: "door.left.hand.closed")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        if let roomNumber {
+                            Label(
+                                "Room \(roomNumber)",
+                                systemImage: "door.left.hand.closed"
+                            )
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        }
+                    }
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
 
                 stayTiming
             }
@@ -1184,19 +1272,31 @@ private struct WAI3DutyRow: View {
         if let stay {
             switch stay.timingStatus {
             case .calculated(let details):
-            Group {
-                if dynamicTypeSize.isAccessibilitySize {
-                    stayTimingVertical(details, stay: stay)
-                } else {
-                    ViewThatFits(in: .horizontal) {
-                        HStack(spacing: 16) {
-                            stayTimingLabels(details, stay: stay)
-                        }
+            Button {
+                editStayRoutine(details)
+            } label: {
+                HStack(spacing: 10) {
+                    Group {
+                        if dynamicTypeSize.isAccessibilitySize {
+                            stayTimingVertical(details, stay: stay)
+                        } else {
+                            ViewThatFits(in: .horizontal) {
+                                HStack(spacing: 16) {
+                                    stayTimingLabels(details, stay: stay)
+                                }
 
-                        stayTimingVertical(details, stay: stay)
+                                stayTimingVertical(details, stay: stay)
+                            }
+                        }
                     }
+                    Spacer(minLength: 8)
+                    Image(systemName: "slider.horizontal.3")
+                        .foregroundStyle(.blue)
                 }
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("wai3.roster.stayRoutine.\(stay.id)")
 
             if stay.requiresTransportConfirmation {
                 Label("Confirm transfer option", systemImage: "exclamationmark.triangle")
@@ -1330,6 +1430,7 @@ private struct WAI3DutyDetailView: View {
 
     @State private var selectedHotel: Hotel?
     @State private var showingHomeRoutineSettings = false
+    @State private var selectedRoutineEditor: WAI3RoutineEditorSelection?
 
     var body: some View {
         NavigationStack {
@@ -1525,7 +1626,14 @@ private struct WAI3DutyDetailView: View {
                             stay: stay,
                             override: personalizationController
                                 .stayRoutineOverride(for: stay.id),
-                            controller: personalizationController
+                            editAction: { details in
+                                selectedRoutineEditor = .stay(
+                                    stay: stay,
+                                    details: details,
+                                    override: personalizationController
+                                        .stayRoutineOverride(for: stay.id)
+                                )
+                            }
                         )
                     }
                 }
@@ -1544,6 +1652,12 @@ private struct WAI3DutyDetailView: View {
                 hotelStayStore: hotelStayStore
             )
         }
+        .sheet(item: $selectedRoutineEditor) { selection in
+            WAI3RoutineEditorSheet(
+                selection: selection,
+                controller: personalizationController
+            )
+        }
         .sheet(isPresented: $showingHomeRoutineSettings) {
             WAI3HomeRoutineSettingsView(
                 stations: stations,
@@ -1557,11 +1671,8 @@ private struct WAI3DutyDetailView: View {
     private var homeDepartureSection: some View {
         if let homeRoutine {
             Section("Home departure") {
-                NavigationLink {
-                    WAI3HomeRoutineOverrideView(
-                        routine: homeRoutine,
-                        controller: personalizationController
-                    )
+                Button {
+                    selectedRoutineEditor = .home(homeRoutine)
                 } label: {
                     LabeledContent(
                         "Wake-up",
@@ -1572,12 +1683,10 @@ private struct WAI3DutyDetailView: View {
                         )
                     )
                 }
+                .buttonStyle(.plain)
                 .accessibilityIdentifier("wai3.homeRoutine.wakeupLink")
-                NavigationLink {
-                    WAI3HomeRoutineOverrideView(
-                        routine: homeRoutine,
-                        controller: personalizationController
-                    )
+                Button {
+                    selectedRoutineEditor = .home(homeRoutine)
                 } label: {
                     LabeledContent(
                         "Pick-up / leave home",
@@ -1588,6 +1697,7 @@ private struct WAI3DutyDetailView: View {
                         )
                     )
                 }
+                .buttonStyle(.plain)
                 .accessibilityIdentifier("wai3.homeRoutine.pickupLink")
                 LabeledContent(
                     "Report",
@@ -2036,6 +2146,151 @@ private struct WAI3HomeRoutineSettingsView: View {
     }
 }
 
+private enum WAI3RoutineEditorField: String, CaseIterable, Identifiable {
+    case wakeup
+    case pickup
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .wakeup: "Wake-up"
+        case .pickup: "Pick-up"
+        }
+    }
+}
+
+private struct WAI3RoutineEditorBody: View {
+    @Binding var wakeup: Date
+    @Binding var pickup: Date
+    let reportText: String
+    let pickupTitle: String
+    let pickupSystemImage: String
+    let timeZone: TimeZone
+    let isValid: Bool
+    let resetTitle: String?
+    let resetAction: (() -> Void)?
+
+    @State private var selectedField: WAI3RoutineEditorField = .wakeup
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                HStack(spacing: 12) {
+                    Image(systemName: "airplane.departure")
+                        .font(.title2)
+                        .foregroundStyle(.blue)
+                        .frame(width: 32)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Report")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(reportText)
+                            .font(.subheadline.monospacedDigit())
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(16)
+                .background(Color(uiColor: .secondarySystemGroupedBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                HStack(spacing: 0) {
+                    timeSummary(
+                        title: "Wake-up",
+                        systemImage: "alarm",
+                        date: wakeup
+                    )
+                    Divider()
+                        .frame(height: 48)
+                    timeSummary(
+                        title: pickupTitle,
+                        systemImage: pickupSystemImage,
+                        date: pickup
+                    )
+                }
+
+                Picker("Time to adjust", selection: $selectedField) {
+                    Text("Wake-up").tag(WAI3RoutineEditorField.wakeup)
+                    Text(pickupTitle).tag(WAI3RoutineEditorField.pickup)
+                }
+                .pickerStyle(.segmented)
+                .accessibilityIdentifier("wai3.routineEditor.field")
+
+                DatePicker(
+                    selectedField == .wakeup ? "Wake-up" : pickupTitle,
+                    selection: selectedTime,
+                    displayedComponents: [.hourAndMinute]
+                )
+                .datePickerStyle(.wheel)
+                .labelsHidden()
+                .accessibilityIdentifier(
+                    selectedField == .wakeup
+                        ? "wai3.routineEditor.wakeup"
+                        : "wai3.routineEditor.pickup"
+                )
+
+                if !isValid {
+                    Label(
+                        "Wake-up must be before pick-up",
+                        systemImage: "exclamationmark.triangle"
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(.orange)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                if let resetTitle, let resetAction {
+                    Button(resetTitle, action: resetAction)
+                        .buttonStyle(.bordered)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+        }
+        .background(Color(uiColor: .systemGroupedBackground))
+    }
+
+    private var selectedTime: Binding<Date> {
+        Binding(
+            get: {
+                selectedField == .wakeup ? wakeup : pickup
+            },
+            set: { value in
+                if selectedField == .wakeup {
+                    wakeup = value
+                } else {
+                    pickup = value
+                }
+            }
+        )
+    }
+
+    private func timeSummary(
+        title: String,
+        systemImage: String,
+        date: Date
+    ) -> some View {
+        VStack(spacing: 5) {
+            Label(title, systemImage: systemImage)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            Text(formattedTime(date))
+                .font(.title2.monospacedDigit())
+                .fontWeight(.semibold)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func formattedTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_GB")
+        formatter.timeZone = timeZone
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
+    }
+}
+
 private struct WAI3HomeRoutineOverrideView: View {
     @Environment(\.dismiss) private var dismiss
     let routine: RosterHomeRoutine
@@ -2055,45 +2310,21 @@ private struct WAI3HomeRoutineOverrideView: View {
     }
 
     var body: some View {
-        Form {
-            Section("This duty") {
-                LabeledContent(
-                    "Report",
-                    value: WAI3RosterFormatting.absoluteDateTime(
-                        routine.report,
-                        stationIATA: routine.stationIATA,
-                        timeZoneIdentifier: routine.timeZoneIdentifier
-                    )
-                )
-                DatePicker(
-                    "Wake-up",
-                    selection: $wakeup,
-                    displayedComponents: [.hourAndMinute]
-                )
-                .accessibilityIdentifier("wai3.homeRoutine.wakeup")
-                DatePicker(
-                    "Pick-up / leave home",
-                    selection: $leaveHome,
-                    displayedComponents: [.hourAndMinute]
-                )
-                .accessibilityIdentifier("wai3.homeRoutine.pickup")
-
-                if resolvedTimes == nil {
-                    Label(
-                        "Wake-up must be before pick-up",
-                        systemImage: "exclamationmark.triangle"
-                    )
-                    .font(.footnote)
-                    .foregroundStyle(.orange)
-                }
-            }
-
-            if routine.usesDutyOverride {
-                Section {
-                    Button("Use default times", action: useDefaults)
-                }
-            }
-        }
+        WAI3RoutineEditorBody(
+            wakeup: $wakeup,
+            pickup: $leaveHome,
+            reportText: WAI3RosterFormatting.absoluteDateTime(
+                routine.report,
+                stationIATA: routine.stationIATA,
+                timeZoneIdentifier: routine.timeZoneIdentifier
+            ),
+            pickupTitle: "Leave home",
+            pickupSystemImage: "house",
+            timeZone: routineTimeZone,
+            isValid: resolvedTimes != nil,
+            resetTitle: routine.usesDutyOverride ? "Use default times" : nil,
+            resetAction: routine.usesDutyOverride ? useDefaults : nil
+        )
         .environment(\.timeZone, routineTimeZone)
         .navigationTitle("Adjust home departure")
         .navigationBarTitleDisplayMode(.inline)
@@ -2655,18 +2886,13 @@ private struct WAI3LegBriefingEditView: View {
 private struct WAI3StayTimingDetail: View {
     let stay: RosterStay
     let override: RosterStayRoutineOverrideRecord?
-    @ObservedObject var controller: WAIRosterPersonalizationController
+    let editAction: (TimeCalculationDetails) -> Void
 
     var body: some View {
         switch stay.timingStatus {
         case .calculated(let details):
-            NavigationLink {
-                WAI3StayRoutineOverrideView(
-                    stay: stay,
-                    details: details,
-                    override: override,
-                    controller: controller
-                )
+            Button {
+                editAction(details)
             } label: {
                 LabeledContent(
                     "Wake-up",
@@ -2676,14 +2902,10 @@ private struct WAI3StayTimingDetail: View {
                     )
                 )
             }
+            .buttonStyle(.plain)
             .accessibilityIdentifier("wai3.stay.wakeupLink")
-            NavigationLink {
-                WAI3StayRoutineOverrideView(
-                    stay: stay,
-                    details: details,
-                    override: override,
-                    controller: controller
-                )
+            Button {
+                editAction(details)
             } label: {
                 LabeledContent(
                     "Pick-up",
@@ -2693,6 +2915,7 @@ private struct WAI3StayTimingDetail: View {
                     )
                 )
             }
+            .buttonStyle(.plain)
             .accessibilityIdentifier("wai3.stay.pickupLink")
             LabeledContent(
                 "Report",
@@ -2830,45 +3053,21 @@ private struct WAI3StayRoutineOverrideView: View {
     }
 
     var body: some View {
-        Form {
-            Section("This stay") {
-                LabeledContent(
-                    "Report",
-                    value: WAI3RosterFormatting.absoluteDateTime(
-                        details.report,
-                        stationIATA: stay.stationIATA,
-                        timeZoneIdentifier: stay.stationTimeZoneIdentifier
-                    )
-                )
-                DatePicker(
-                    "Wake-up",
-                    selection: $wakeup,
-                    displayedComponents: [.hourAndMinute]
-                )
-                .accessibilityIdentifier("wai3.stay.wakeup")
-                DatePicker(
-                    "Pick-up",
-                    selection: $pickup,
-                    displayedComponents: [.hourAndMinute]
-                )
-                .accessibilityIdentifier("wai3.stay.pickup")
-
-                if resolvedTimes == nil {
-                    Label(
-                        "Wake-up must be before pick-up",
-                        systemImage: "exclamationmark.triangle"
-                    )
-                    .font(.footnote)
-                    .foregroundStyle(.orange)
-                }
-            }
-
-            if override != nil {
-                Section {
-                    Button("Use calculated times", action: useCalculatedTimes)
-                }
-            }
-        }
+        WAI3RoutineEditorBody(
+            wakeup: $wakeup,
+            pickup: $pickup,
+            reportText: WAI3RosterFormatting.absoluteDateTime(
+                details.report,
+                stationIATA: stay.stationIATA,
+                timeZoneIdentifier: stay.stationTimeZoneIdentifier
+            ),
+            pickupTitle: "Pick-up",
+            pickupSystemImage: "bus",
+            timeZone: stayTimeZone,
+            isValid: resolvedTimes != nil,
+            resetTitle: override == nil ? nil : "Use calculated times",
+            resetAction: override == nil ? nil : useCalculatedTimes
+        )
         .environment(\.timeZone, stayTimeZone)
         .navigationTitle("Adjust hotel routine")
         .navigationBarTitleDisplayMode(.inline)

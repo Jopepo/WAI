@@ -249,11 +249,28 @@ final class WAIUITests: XCTestCase {
         app.launchArguments.append("--wai3-approved-ui-test-fixture")
         app.launch()
 
-        let outboundDuty = app.descendants(matching: .any).matching(
-            NSPredicate(format: "label CONTAINS %@", "2CPH1501P")
-        ).firstMatch
+        let outboundDuty = app.buttons[
+            "wai3.roster.duty.fixture-outbound-duty"
+        ]
         XCTAssertTrue(outboundDuty.waitForExistence(timeout: 4))
-        XCTAssertTrue(outboundDuty.label.contains("Pick-up / leave home"))
+
+        let directRoutine = app.buttons[
+            "wai3.roster.homeRoutine.fixture-outbound-duty"
+        ]
+        scrollUntilAccessible(directRoutine, in: app)
+        XCTAssertTrue(directRoutine.label.contains("Wake-up"))
+        XCTAssertTrue(directRoutine.label.contains("Pick-up / leave home"))
+        directRoutine.tap()
+        XCTAssertTrue(
+            app.navigationBars["Adjust home departure"]
+                .waitForExistence(timeout: 2)
+        )
+        XCTAssertTrue(
+            app.descendants(matching: .any)["wai3.routineEditor.field"].exists
+        )
+        attachScreenshot(named: "WAI 3 routine sheet")
+        app.buttons["Cancel"].tap()
+
         outboundDuty.tap()
 
         let adjustHomeRoutine = app.descendants(matching: .any)[
@@ -266,10 +283,7 @@ final class WAIUITests: XCTestCase {
                 .waitForExistence(timeout: 2)
         )
         XCTAssertTrue(
-            app.descendants(matching: .any)["wai3.homeRoutine.wakeup"].exists
-        )
-        XCTAssertTrue(
-            app.descendants(matching: .any)["wai3.homeRoutine.pickup"].exists
+            app.descendants(matching: .any)["wai3.routineEditor.wakeup"].exists
         )
         app.buttons["Save"].tap()
         let adjustedHomeRoutine = app.staticTexts["Adjusted for this duty"]
