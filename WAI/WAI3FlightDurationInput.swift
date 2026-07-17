@@ -12,8 +12,17 @@ enum WAI3FlightDurationInput {
         minutes: String
     ) -> Int? {
         guard let hours = Int(hours),
-              let minutes = Int(minutes),
-              (0...24).contains(hours),
+              let minutes = Int(minutes) else {
+            return nil
+        }
+        return totalMinutes(hours: hours, minutes: minutes)
+    }
+
+    static func totalMinutes(
+        hours: Int,
+        minutes: Int
+    ) -> Int? {
+        guard (0...24).contains(hours),
               (0...59).contains(minutes),
               hours < 24 || minutes == 0 else {
             return nil

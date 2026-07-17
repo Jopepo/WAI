@@ -181,9 +181,14 @@ final class WAIUITests: XCTestCase {
             "wai3.roster.duty.fixture-outbound-duty"
         ]
         scrollToEarlierContentUntilAccessible(outboundDuty, in: app)
-        XCTAssertTrue(outboundDuty.label.contains("Wake-up"))
-        XCTAssertTrue(outboundDuty.label.contains("Pick-up"))
         assertHorizontallyContained(outboundDuty, in: app)
+        let outboundRoutine = app.buttons[
+            "wai3.roster.homeRoutine.fixture-outbound-duty"
+        ]
+        XCTAssertTrue(outboundRoutine.waitForExistence(timeout: 2))
+        XCTAssertTrue(outboundRoutine.label.contains("Wake-up"))
+        XCTAssertTrue(outboundRoutine.label.contains("Pick-up"))
+        assertHorizontallyContained(outboundRoutine, in: app)
         attachScreenshot(named: "WAI 3 dark accessibility roster")
 
         outboundDuty.tap()
@@ -209,8 +214,8 @@ final class WAIUITests: XCTestCase {
         let briefingTime = app.buttons["Briefing"]
         scrollUntilAccessible(briefingTime, in: app)
         briefingTime.tap()
-        let hours = app.textFields["wai3.briefing.flightHours"]
-        let minutes = app.textFields["wai3.briefing.flightMinutes"]
+        let hours = app.pickerWheels.element(boundBy: 0)
+        let minutes = app.pickerWheels.element(boundBy: 1)
         XCTAssertTrue(hours.waitForExistence(timeout: 2))
         XCTAssertTrue(minutes.exists)
         assertHorizontallyContained(hours, in: app)
@@ -313,18 +318,19 @@ final class WAIUITests: XCTestCase {
 
         let briefingTime = app.buttons["Briefing"]
         scrollUntilAccessible(briefingTime, in: app)
-        briefingTime.tap()
 
-        let hours = app.textFields["wai3.briefing.flightHours"]
+        let hours = app.pickerWheels.element(boundBy: 0)
+        let minutes = app.pickerWheels.element(boundBy: 1)
         XCTAssertTrue(hours.waitForExistence(timeout: 2))
-        hours.tap()
-        hours.typeText("4")
-        let minutes = app.textFields["wai3.briefing.flightMinutes"]
-        minutes.tap()
-        minutes.typeText("25")
-        app.buttons["wai3.briefing.flightTimeKeyboardDone"].tap()
-        XCTAssertEqual(hours.value as? String, "4")
-        XCTAssertEqual(minutes.value as? String, "25")
+        XCTAssertTrue(minutes.exists)
+        XCTAssertEqual(hours.value as? String, "3 h")
+        XCTAssertEqual(minutes.value as? String, "00 min")
+
+        briefingTime.tap()
+        hours.adjust(toPickerWheelValue: "4 h")
+        minutes.adjust(toPickerWheelValue: "25 min")
+        XCTAssertEqual(hours.value as? String, "4 h")
+        XCTAssertEqual(minutes.value as? String, "25 min")
 
         let password = app.descendants(matching: .any)[
             "wai3.briefing.password"

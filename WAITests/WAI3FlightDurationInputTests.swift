@@ -51,6 +51,12 @@ struct WAI3FlightDurationInputTests {
                 minutes: "00"
             ) == 1_440
         )
+        #expect(
+            WAI3FlightDurationInput.totalMinutes(
+                hours: 3,
+                minutes: 25
+            ) == 205
+        )
     }
 
     @Test func sanitizesAndFormatsComponents() {
