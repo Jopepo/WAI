@@ -147,24 +147,18 @@ struct WAI3AccessRootView: View {
         switch operationalDataController.state {
         case .idle, .loading:
             WAI3ProgressView(message: "Loading operational data")
-        case .ready(let ready):
-            VStack(spacing: 0) {
-                if ready.syncState != .current {
-                    WAI3DataStatusBanner(syncState: ready.syncState)
-                }
-
-                WAI3CrewWorkspaceView(
-                    rosterController: rosterController,
-                    roomNumberController: roomNumberController,
-                    personalizationController: personalizationController,
-                    calculationHistoryStore: calculationHistoryStore,
-                    hotelStayStore: hotelStayStore,
-                    dataService: operationalDataController.dataService,
-                    hotelDataService: operationalDataController.hotelDataService,
-                    whatsNewDataService: operationalDataController.whatsNewDataService,
-                    accountAction: { showingAccount = true }
-                )
-            }
+        case .ready:
+            WAI3CrewWorkspaceView(
+                rosterController: rosterController,
+                roomNumberController: roomNumberController,
+                personalizationController: personalizationController,
+                calculationHistoryStore: calculationHistoryStore,
+                hotelStayStore: hotelStayStore,
+                dataService: operationalDataController.dataService,
+                hotelDataService: operationalDataController.hotelDataService,
+                whatsNewDataService: operationalDataController.whatsNewDataService,
+                accountAction: { showingAccount = true }
+            )
         case .failed(let failure):
             WAI3OperationalDataFailureView(
                 failure: failure,
@@ -1036,60 +1030,6 @@ private struct WAI3DeleteAccountAuthorizationView: View {
         case .secureStorage:
             return "WAI could not safely clear local credentials. Access has been stopped."
         }
-    }
-}
-
-private struct WAI3DataStatusBanner: View {
-    let syncState: WAIProtectedDataSyncState
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon)
-            Text(label)
-                .font(.caption)
-                .fontWeight(.semibold)
-        }
-        .foregroundStyle(foreground)
-        .padding(.horizontal, 12)
-        .frame(maxWidth: .infinity, minHeight: 34)
-        .background(background)
-        .accessibilityElement(children: .combine)
-    }
-
-    private var icon: String {
-        switch syncState {
-        case .current:
-            return "checkmark.circle"
-        case .offline:
-            return "wifi.slash"
-        case .refreshDeferred:
-            return "arrow.clockwise.circle"
-        case .remoteRejected:
-            return "checkmark.shield"
-        }
-    }
-
-    private var label: String {
-        switch syncState {
-        case .current:
-            return "Operational data current"
-        case .offline:
-            return "Offline - using verified data"
-        case .refreshDeferred:
-            return "Update check unavailable - using verified data"
-        case .remoteRejected:
-            return "Update not applied - using verified data"
-        }
-    }
-
-    private var foreground: Color {
-        syncState == .offline ? .primary : .orange
-    }
-
-    private var background: Color {
-        syncState == .offline
-            ? Color(.secondarySystemBackground)
-            : .orange.opacity(0.12)
     }
 }
 
