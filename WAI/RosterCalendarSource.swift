@@ -466,39 +466,29 @@ final class EventKitRosterCalendarSource: WAIRosterCalendarSourcing {
         guard calendar.allowsContentModifications else {
             return .readOnly
         }
-        guard let departure = leg.departure.instant,
-              let markerURL = Self.briefingEventURL(for: leg.id) else {
+        guard let departure = leg.departure.instant else {
             return .sourceEventNotFound
         }
 
-        let existing = briefingEvent(
-            markerURL: markerURL,
+        if let plannedFlightMinutes,
+           !(1...1_440).contains(plannedFlightMinutes) {
+            return .sourceEventNotFound
+        }
+
+        sourceEvent.notes = Self.briefingNotes(
+            sourceNotes: sourceEvent.notes ?? "",
+            leg: leg,
+            plannedFlightMinutes: plannedFlightMinutes
+        )
+        try eventStore.save(sourceEvent, span: .thisEvent, commit: true)
+        try removeLegacyBriefingEvents(
+            markerURL: Self.briefingEventURL(for: leg.id),
             departure: departure,
             calendar: calendar
         )
-        guard let plannedFlightMinutes else {
-            if let existing {
-                try eventStore.remove(existing, span: .thisEvent, commit: true)
-            }
-            return .removed(calendarTitle: calendar.title)
-        }
-        guard (1...1_440).contains(plannedFlightMinutes) else {
-            return .sourceEventNotFound
-        }
-
-        let event = existing ?? EKEvent(eventStore: eventStore)
-        event.calendar = calendar
-        event.title = "WAI · \(leg.flightNumber) · \(leg.originIATA)-\(leg.destinationIATA)"
-        event.startDate = departure
-        event.endDate = departure.addingTimeInterval(
-            Double(plannedFlightMinutes * 60)
-        )
-        event.timeZone = leg.departure.timeZoneIdentifier
-            .flatMap(TimeZone.init(identifier:))
-        event.notes = "Flight time saved from the WAI briefing."
-        event.url = markerURL
-        try eventStore.save(event, span: .thisEvent, commit: true)
-        return .synced(calendarTitle: calendar.title)
+        return plannedFlightMinutes == nil
+            ? .removed(calendarTitle: calendar.title)
+            : .synced(calendarTitle: calendar.title)
     }
 
     func syncActualFlightEvent(
@@ -521,28 +511,42 @@ final class EventKitRosterCalendarSource: WAIRosterCalendarSourcing {
         guard calendar.allowsContentModifications else {
             return .readOnly
         }
-        guard let markerURL = Self.briefingEventURL(for: leg.id) else {
+        guard leg.departure.instant != nil else {
             return .sourceEventNotFound
         }
 
-        let event = briefingEvent(
-            markerURL: markerURL,
+        sourceEvent.notes = Self.actualFlightNotes(
+            sourceNotes: sourceEvent.notes ?? "",
+            leg: leg,
+            passengerLoad: passengerLoad,
+            durationMinutes: duration,
+            takeoffAt: actual.takeoffAt,
+            landingAt: landing
+        )
+        try eventStore.save(sourceEvent, span: .thisEvent, commit: true)
+        try removeLegacyBriefingEvents(
+            markerURL: Self.briefingEventURL(for: leg.id),
             departure: actual.takeoffAt,
             calendar: calendar
-        ) ?? EKEvent(eventStore: eventStore)
-        event.calendar = calendar
-        event.title = "\(leg.flightNumber) · \(leg.originIATA) → \(leg.destinationIATA)"
-        event.startDate = actual.takeoffAt
-        event.endDate = landing
-        event.timeZone = leg.departure.timeZoneIdentifier
-            .flatMap(TimeZone.init(identifier:))
-        event.notes = Self.actualFlightNotes(
-            passengerLoad: passengerLoad,
-            durationMinutes: duration
         )
-        event.url = markerURL
-        try eventStore.save(event, span: .thisEvent, commit: true)
         return .synced(calendarTitle: calendar.title)
+    }
+
+    static func briefingNotes(
+        sourceNotes: String,
+        leg: RosterLeg,
+        plannedFlightMinutes: Int?
+    ) -> String {
+        let entry: String? = plannedFlightMinutes.map { minutes in
+            "\(briefingMarker(for: leg.id)) \(leg.flightNumber) \(leg.originIATA)-\(leg.destinationIATA) | Flight time: \(formattedDuration(minutes))"
+        }
+        return replacingManagedEntry(
+            in: sourceNotes,
+            sectionStart: briefingSectionStart,
+            sectionEnd: briefingSectionEnd,
+            entryMarker: briefingMarker(for: leg.id),
+            entry: entry
+        )
     }
 
     static func actualFlightNotes(
@@ -565,6 +569,31 @@ final class EventKitRosterCalendarSource: WAIRosterCalendarSourcing {
         )
         lines.append("Recorded by WAI on Apple Watch")
         return lines.joined(separator: "\n")
+    }
+
+    static func actualFlightNotes(
+        sourceNotes: String,
+        leg: RosterLeg,
+        passengerLoad: String?,
+        durationMinutes: Int,
+        takeoffAt: Date,
+        landingAt: Date
+    ) -> String {
+        var details = "Actual time: \(formattedDuration(durationMinutes))"
+        if let passengerLoad,
+           !passengerLoad.trimmingCharacters(
+               in: .whitespacesAndNewlines
+           ).isEmpty {
+            details += " | PAX: \(passengerLoad)"
+        }
+        details += " | \(iso8601.string(from: takeoffAt)) → \(iso8601.string(from: landingAt))"
+        return replacingManagedEntry(
+            in: sourceNotes,
+            sectionStart: actualSectionStart,
+            sectionEnd: actualSectionEnd,
+            entryMarker: actualMarker(for: leg.id),
+            entry: "\(actualMarker(for: leg.id)) \(leg.flightNumber) \(leg.originIATA)-\(leg.destinationIATA) | \(details)"
+        )
     }
 
     static func briefingEventURL(for legID: String) -> URL? {
@@ -601,18 +630,22 @@ final class EventKitRosterCalendarSource: WAIRosterCalendarSourcing {
         }
     }
 
-    private func briefingEvent(
-        markerURL: URL,
+    private func removeLegacyBriefingEvents(
+        markerURL: URL?,
         departure: Date,
         calendar: EKCalendar
-    ) -> EKEvent? {
+    ) throws {
+        guard let markerURL else { return }
         let predicate = eventStore.predicateForEvents(
             withStart: departure.addingTimeInterval(-86_400),
             end: departure.addingTimeInterval(172_800),
             calendars: [calendar]
         )
-        return eventStore.events(matching: predicate).first {
+        let legacyEvents = eventStore.events(matching: predicate).filter {
             $0.url == markerURL
+        }
+        for legacyEvent in legacyEvents {
+            try eventStore.remove(legacyEvent, span: .thisEvent, commit: true)
         }
     }
 
@@ -678,6 +711,70 @@ final class EventKitRosterCalendarSource: WAIRosterCalendarSourcing {
         }
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private static let briefingSectionStart = "[WAI BRIEFING]"
+    private static let briefingSectionEnd = "[/WAI BRIEFING]"
+    private static let actualSectionStart = "[WAI ACTUAL FLIGHT]"
+    private static let actualSectionEnd = "[/WAI ACTUAL FLIGHT]"
+
+    private static let iso8601: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+
+    private static func formattedDuration(_ minutes: Int) -> String {
+        String(format: "%02d:%02d", minutes / 60, minutes % 60)
+    }
+
+    private static func briefingMarker(for legID: String) -> String {
+        "WAI-BRIEFING-\(digest(for: legID))"
+    }
+
+    private static func actualMarker(for legID: String) -> String {
+        "WAI-ACTUAL-\(digest(for: legID))"
+    }
+
+    private static func digest(for value: String) -> String {
+        SHA256.hash(data: Data(value.utf8))
+            .map { String(format: "%02x", $0) }
+            .joined()
+    }
+
+    private static func replacingManagedEntry(
+        in sourceNotes: String,
+        sectionStart: String,
+        sectionEnd: String,
+        entryMarker: String,
+        entry: String?
+    ) -> String {
+        var lines = sourceNotes
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+            .components(separatedBy: "\n")
+
+        var preservedEntries: [String] = []
+        while let start = lines.firstIndex(of: sectionStart),
+              let end = lines[(start + 1)...].firstIndex(of: sectionEnd) {
+            preservedEntries.append(contentsOf: lines[(start + 1)..<end]
+                .filter { !$0.hasPrefix("\(entryMarker) ") })
+            lines.removeSubrange(start...end)
+        }
+
+        if let entry {
+            preservedEntries.append(entry)
+        }
+
+        let base = lines.joined(separator: "\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !preservedEntries.isEmpty else {
+            return base
+        }
+        let managedBlock = (
+            [sectionStart] + preservedEntries + [sectionEnd]
+        ).joined(separator: "\n")
+        return base.isEmpty ? managedBlock : "\(base)\n\n\(managedBlock)"
     }
 
     private static func authorizationStatus(

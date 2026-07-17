@@ -281,6 +281,78 @@ struct RosterCalendarSourceTests {
         )
     }
 
+    @Test func briefingNotesUpdateOutboundAndReturnWithoutDuplicates() {
+        let outbound = leg(
+            id: "duty-1-0-TP754",
+            flightNumber: "TP754",
+            origin: "LIS",
+            destination: "CPH"
+        )
+        let inbound = leg(
+            id: "duty-1-1-TP755",
+            flightNumber: "TP755",
+            origin: "CPH",
+            destination: "LIS"
+        )
+        let source = "ACTIVIDADE: 2CPH3101P\nVOO TP754\nVOO TP755"
+
+        let outboundNotes = EventKitRosterCalendarSource.briefingNotes(
+            sourceNotes: source,
+            leg: outbound,
+            plannedFlightMinutes: 185
+        )
+        let bothNotes = EventKitRosterCalendarSource.briefingNotes(
+            sourceNotes: outboundNotes,
+            leg: inbound,
+            plannedFlightMinutes: 140
+        )
+        let updatedOutboundNotes = EventKitRosterCalendarSource.briefingNotes(
+            sourceNotes: bothNotes,
+            leg: outbound,
+            plannedFlightMinutes: 190
+        )
+
+        #expect(updatedOutboundNotes.contains("Flight time: 03:10"))
+        #expect(!updatedOutboundNotes.contains("Flight time: 03:05"))
+        #expect(updatedOutboundNotes.contains("Flight time: 02:20"))
+        #expect(updatedOutboundNotes.components(separatedBy: "[WAI BRIEFING]").count == 2)
+        #expect(updatedOutboundNotes.components(separatedBy: "WAI-BRIEFING-").count == 3)
+    }
+
+    @Test func clearingBriefingRemovesOnlyThatLegAndPreservesRosterNotes() {
+        let outbound = leg(
+            id: "duty-1-0-TP754",
+            flightNumber: "TP754",
+            origin: "LIS",
+            destination: "CPH"
+        )
+        let inbound = leg(
+            id: "duty-1-1-TP755",
+            flightNumber: "TP755",
+            origin: "CPH",
+            destination: "LIS"
+        )
+        let withBoth = EventKitRosterCalendarSource.briefingNotes(
+            sourceNotes: "ACTIVIDADE: 2CPH3101P",
+            leg: outbound,
+            plannedFlightMinutes: 185
+        )
+        let withBothAndReturn = EventKitRosterCalendarSource.briefingNotes(
+            sourceNotes: withBoth,
+            leg: inbound,
+            plannedFlightMinutes: 140
+        )
+        let clearedOutbound = EventKitRosterCalendarSource.briefingNotes(
+            sourceNotes: withBothAndReturn,
+            leg: outbound,
+            plannedFlightMinutes: nil
+        )
+
+        #expect(clearedOutbound.contains("ACTIVIDADE: 2CPH3101P"))
+        #expect(!clearedOutbound.contains("TP754 LIS-CPH"))
+        #expect(clearedOutbound.contains("TP755 CPH-LIS"))
+    }
+
     @Test func oversizedCalendarNotesAreIgnoredBeforePayloadCreation() throws {
         let snapshot = event(
             id: "oversized",
@@ -336,6 +408,47 @@ struct RosterCalendarSourceTests {
             start: start,
             end: end,
             timeZoneIdentifier: "Europe/Lisbon"
+        )
+    }
+
+    private func leg(
+        id: String,
+        flightNumber: String,
+        origin: String,
+        destination: String
+    ) -> RosterLeg {
+        let departure = RosterLocalDateTime(
+            year: 2026,
+            month: 7,
+            day: 15,
+            hour: 7,
+            minute: 0,
+            timeZoneIdentifier: "Europe/Lisbon",
+            instant: date(2026, 7, 15, 7, 0)
+        )
+        let arrival = RosterLocalDateTime(
+            year: 2026,
+            month: 7,
+            day: 15,
+            hour: 11,
+            minute: 0,
+            timeZoneIdentifier: "Europe/Copenhagen",
+            instant: date(2026, 7, 15, 11, 0)
+        )
+        return RosterLeg(
+            id: id,
+            flightNumber: flightNumber,
+            departure: departure,
+            arrival: arrival,
+            originIATA: origin,
+            originName: nil,
+            destinationIATA: destination,
+            destinationName: nil,
+            aircraftRegistration: nil,
+            aircraftName: nil,
+            passengerLoad: nil,
+            cosmicRadiation: nil,
+            crew: []
         )
     }
 
