@@ -64,6 +64,12 @@ protocol WAIRosterCalendarSourcing: AnyObject {
         leg: RosterLeg,
         plannedFlightMinutes: Int?
     ) throws -> WAIBriefingCalendarSyncResult
+    func syncActualFlightEvent(
+        duty: RosterDuty,
+        leg: RosterLeg,
+        actual: RosterLegActualFlightRecord,
+        passengerLoad: String?
+    ) throws -> WAIBriefingCalendarSyncResult
 }
 
 extension WAIRosterCalendarSourcing {
@@ -71,6 +77,15 @@ extension WAIRosterCalendarSourcing {
         duty: RosterDuty,
         leg: RosterLeg,
         plannedFlightMinutes: Int?
+    ) throws -> WAIBriefingCalendarSyncResult {
+        .sourceEventNotFound
+    }
+
+    func syncActualFlightEvent(
+        duty: RosterDuty,
+        leg: RosterLeg,
+        actual: RosterLegActualFlightRecord,
+        passengerLoad: String?
     ) throws -> WAIBriefingCalendarSyncResult {
         .sourceEventNotFound
     }
@@ -484,6 +499,72 @@ final class EventKitRosterCalendarSource: WAIRosterCalendarSourcing {
         event.url = markerURL
         try eventStore.save(event, span: .thisEvent, commit: true)
         return .synced(calendarTitle: calendar.title)
+    }
+
+    func syncActualFlightEvent(
+        duty: RosterDuty,
+        leg: RosterLeg,
+        actual: RosterLegActualFlightRecord,
+        passengerLoad: String?
+    ) throws -> WAIBriefingCalendarSyncResult {
+        guard authorization == .authorized else {
+            return .notAuthorized
+        }
+        guard actual.legID == leg.id,
+              actual.isValid,
+              let landing = actual.landingAt,
+              let duration = actual.durationMinutes,
+              let sourceEvent = sourceEvent(for: duty),
+              let calendar = sourceEvent.calendar else {
+            return .sourceEventNotFound
+        }
+        guard calendar.allowsContentModifications else {
+            return .readOnly
+        }
+        guard let markerURL = Self.briefingEventURL(for: leg.id) else {
+            return .sourceEventNotFound
+        }
+
+        let event = briefingEvent(
+            markerURL: markerURL,
+            departure: actual.takeoffAt,
+            calendar: calendar
+        ) ?? EKEvent(eventStore: eventStore)
+        event.calendar = calendar
+        event.title = "\(leg.flightNumber) · \(leg.originIATA) → \(leg.destinationIATA)"
+        event.startDate = actual.takeoffAt
+        event.endDate = landing
+        event.timeZone = leg.departure.timeZoneIdentifier
+            .flatMap(TimeZone.init(identifier:))
+        event.notes = Self.actualFlightNotes(
+            passengerLoad: passengerLoad,
+            durationMinutes: duration
+        )
+        event.url = markerURL
+        try eventStore.save(event, span: .thisEvent, commit: true)
+        return .synced(calendarTitle: calendar.title)
+    }
+
+    static func actualFlightNotes(
+        passengerLoad: String?,
+        durationMinutes: Int
+    ) -> String {
+        var lines = ["Flight preparation"]
+        if let passengerLoad,
+           !passengerLoad.trimmingCharacters(
+               in: .whitespacesAndNewlines
+           ).isEmpty {
+            lines.append("PAX: \(passengerLoad)")
+        }
+        lines.append(
+            String(
+                format: "Flight time: %02d:%02d",
+                durationMinutes / 60,
+                durationMinutes % 60
+            )
+        )
+        lines.append("Recorded by WAI on Apple Watch")
+        return lines.joined(separator: "\n")
     }
 
     static func briefingEventURL(for legID: String) -> URL? {

@@ -20,6 +20,7 @@ struct WAI3CrewWorkspaceView: View {
     @State private var showingFileImporter = false
     @State private var showingHomeRoutineSettings = false
     @State private var selectedDuty: WAI3DutySelection?
+    @State private var selectedHotel: Hotel?
     @State private var selectedRoutineEditor: WAI3RoutineEditorSelection?
     @State private var todayScrollRequest = 0
 
@@ -111,6 +112,12 @@ struct WAI3CrewWorkspaceView: View {
                 rosterController: rosterController,
                 roomNumberController: roomNumberController,
                 personalizationController: personalizationController,
+                hotelStayStore: hotelStayStore
+            )
+        }
+        .sheet(item: $selectedHotel) { hotel in
+            HotelDetailView(
+                hotel: hotel,
                 hotelStayStore: hotelStayStore
             )
         }
@@ -254,6 +261,9 @@ struct WAI3CrewWorkspaceView: View {
                         Section(group.title) {
                             ForEach(group.duties) { duty in
                                 let stay = staysByDuty[duty.id]
+                                let hotel = stay.flatMap {
+                                    hotelDataService.hotel(for: $0.stationIATA)
+                                }
                                 let analysis = analysesByDuty[duty.id]
                                 let homeRoutine = RosterHomeRoutineBuilder.routine(
                                     for: duty,
@@ -285,6 +295,9 @@ struct WAI3CrewWorkspaceView: View {
                                             stay: stay,
                                             analysis: analysis
                                         )
+                                    },
+                                    openHotel: hotel.map { hotel in
+                                        { selectedHotel = hotel }
                                     },
                                     editHomeRoutine: {
                                         if let homeRoutine {
@@ -1001,6 +1014,7 @@ private struct WAI3DutyRow: View {
     let roomNumber: String?
     let stayRoutineOverride: RosterStayRoutineOverrideRecord?
     let openDuty: () -> Void
+    let openHotel: (() -> Void)?
     let editHomeRoutine: () -> Void
     let editStayRoutine: (TimeCalculationDetails) -> Void
 
@@ -1057,14 +1071,24 @@ private struct WAI3DutyRow: View {
 
             if let stay {
                 Divider()
-                Button(action: openDuty) {
+                Button(action: openHotel ?? openDuty) {
                     VStack(alignment: .leading, spacing: 5) {
-                        Label(
-                            stay.hotelName ?? stay.hotelCode,
-                            systemImage: "bed.double"
-                        )
-                        .font(.subheadline)
-                        .fontWeight(.medium)
+                        HStack(spacing: 8) {
+                            Label(
+                                stay.hotelName ?? stay.hotelCode,
+                                systemImage: "bed.double"
+                            )
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+
+                            Spacer(minLength: 8)
+
+                            if openHotel != nil {
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
 
                         if let roomNumber {
                             Label(
@@ -1078,6 +1102,14 @@ private struct WAI3DutyRow: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(
+                    openHotel == nil
+                        ? stay.hotelName ?? stay.hotelCode
+                        : "Open hotel details for \(stay.hotelName ?? stay.hotelCode)"
+                )
+                .accessibilityIdentifier(
+                    "wai3.roster.hotelDetails.\(stay.id)"
+                )
 
                 stayTiming
             }
@@ -1792,6 +1824,9 @@ private struct WAI3DutyDetailView: View {
                     let briefing = personalizationController.briefing(
                         for: leg.id
                     )
+                    let actual = personalizationController.actualFlight(
+                        for: leg.id
+                    )
                     NavigationLink {
                         WAI3LegBriefingEditView(
                             duty: duty,
@@ -1855,6 +1890,9 @@ private struct WAI3DutyDetailView: View {
                                     )
                                 }
                             }
+                            if let actual {
+                                actualFlightSummary(actual, leg: leg)
+                            }
                         }
                         .padding(.vertical, 3)
                     }
@@ -1873,6 +1911,32 @@ private struct WAI3DutyDetailView: View {
         Text("\(title) \(value)")
             .font(.caption)
             .foregroundStyle(.secondary)
+    }
+
+    @ViewBuilder
+    private func actualFlightSummary(
+        _ actual: RosterLegActualFlightRecord,
+        leg: RosterLeg
+    ) -> some View {
+        if let landing = actual.landingAt,
+           let duration = actual.durationMinutes {
+            Label {
+                Text(
+                    "Actual \(WAI3RosterFormatting.absoluteDateTime(actual.takeoffAt, stationIATA: leg.originIATA, timeZoneIdentifier: leg.departure.timeZoneIdentifier)) → \(WAI3RosterFormatting.absoluteDateTime(landing, stationIATA: leg.destinationIATA, timeZoneIdentifier: leg.arrival.timeZoneIdentifier)) · \(WAI3RosterFormatting.duration(duration))"
+                )
+            } icon: {
+                Image(systemName: "checkmark.circle.fill")
+            }
+            .font(.caption)
+            .foregroundStyle(.green)
+        } else {
+            Label(
+                "Airborne since \(WAI3RosterFormatting.absoluteDateTime(actual.takeoffAt, stationIATA: leg.originIATA, timeZoneIdentifier: leg.departure.timeZoneIdentifier))",
+                systemImage: "airplane"
+            )
+            .font(.caption)
+            .foregroundStyle(.blue)
+        }
     }
 
     @ViewBuilder

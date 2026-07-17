@@ -63,6 +63,21 @@ final class WAIUITests: XCTestCase {
             ).firstMatch.exists
         )
 
+        let rosterHotel = app.descendants(matching: .any)[
+            "wai3.roster.hotelDetails.fixture-outbound-duty|CPHRDS|fixture-outbound-leg"
+        ]
+        XCTAssertTrue(rosterHotel.waitForExistence(timeout: 2))
+        XCTAssertTrue(
+            rosterHotel.label.contains("Radisson Blu Scandinavia Hotel")
+        )
+        rosterHotel.tap()
+
+        XCTAssertTrue(app.navigationBars["Hotel"].waitForExistence(timeout: 2))
+        XCTAssertTrue(
+            app.staticTexts["Radisson Blu Scandinavia Hotel"].exists
+        )
+        app.navigationBars["Hotel"].buttons["Done"].tap()
+
         outboundDuty.tap()
 
         XCTAssertTrue(app.navigationBars["2CPH1501P"].waitForExistence(timeout: 2))

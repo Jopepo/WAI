@@ -57,6 +57,35 @@ struct RosterLegBriefingRecord: Codable, Equatable, Sendable, Identifiable {
     }
 }
 
+struct RosterLegActualFlightRecord:
+    Codable, Equatable, Sendable, Identifiable
+{
+    let legID: String
+    let takeoffAt: Date
+    let landingAt: Date?
+    let updatedAt: Date
+
+    var id: String { legID }
+
+    var durationMinutes: Int? {
+        landingAt.map {
+            Int(($0.timeIntervalSince(takeoffAt) / 60).rounded())
+        }
+    }
+
+    var isValid: Bool {
+        !legID.isEmpty
+        && legID.utf8.count <= 512
+        && takeoffAt.timeIntervalSinceReferenceDate.isFinite
+        && updatedAt.timeIntervalSinceReferenceDate.isFinite
+        && landingAt.map {
+            $0.timeIntervalSinceReferenceDate.isFinite
+            && $0 > takeoffAt
+            && $0.timeIntervalSince(takeoffAt) <= 24 * 60 * 60
+        } != false
+    }
+}
+
 struct RosterHomeRoutineOverrideRecord:
     Codable, Equatable, Sendable, Identifiable
 {
@@ -103,6 +132,7 @@ struct RosterPersonalizationSnapshot: Codable, Equatable, Sendable {
     let schemaVersion: Int
     let homeRoutine: RosterHomeRoutineSettings?
     let briefingRecords: [RosterLegBriefingRecord]
+    let actualFlightRecords: [RosterLegActualFlightRecord]
     let homeRoutineOverrides: [RosterHomeRoutineOverrideRecord]
     let stayRoutineOverrides: [RosterStayRoutineOverrideRecord]
 
@@ -110,12 +140,14 @@ struct RosterPersonalizationSnapshot: Codable, Equatable, Sendable {
         schemaVersion: Int = currentSchemaVersion,
         homeRoutine: RosterHomeRoutineSettings?,
         briefingRecords: [RosterLegBriefingRecord],
+        actualFlightRecords: [RosterLegActualFlightRecord] = [],
         homeRoutineOverrides: [RosterHomeRoutineOverrideRecord] = [],
         stayRoutineOverrides: [RosterStayRoutineOverrideRecord] = []
     ) {
         self.schemaVersion = schemaVersion
         self.homeRoutine = homeRoutine
         self.briefingRecords = briefingRecords
+        self.actualFlightRecords = actualFlightRecords
         self.homeRoutineOverrides = homeRoutineOverrides
         self.stayRoutineOverrides = stayRoutineOverrides
     }
@@ -126,6 +158,10 @@ struct RosterPersonalizationSnapshot: Codable, Equatable, Sendable {
         && briefingRecords.count <= 500
         && briefingRecords.allSatisfy(\.isValid)
         && Set(briefingRecords.map(\.legID)).count == briefingRecords.count
+        && actualFlightRecords.count <= 500
+        && actualFlightRecords.allSatisfy(\.isValid)
+        && Set(actualFlightRecords.map(\.legID)).count
+            == actualFlightRecords.count
         && homeRoutineOverrides.count <= 500
         && homeRoutineOverrides.allSatisfy(\.isValid)
         && Set(homeRoutineOverrides.map(\.dutyID)).count
@@ -140,6 +176,7 @@ struct RosterPersonalizationSnapshot: Codable, Equatable, Sendable {
         case schemaVersion
         case homeRoutine
         case briefingRecords
+        case actualFlightRecords
         case homeRoutineOverrides
         case stayRoutineOverrides
     }
@@ -155,6 +192,10 @@ struct RosterPersonalizationSnapshot: Codable, Equatable, Sendable {
             [RosterLegBriefingRecord].self,
             forKey: .briefingRecords
         )
+        actualFlightRecords = try container.decodeIfPresent(
+            [RosterLegActualFlightRecord].self,
+            forKey: .actualFlightRecords
+        ) ?? []
         homeRoutineOverrides = try container.decodeIfPresent(
             [RosterHomeRoutineOverrideRecord].self,
             forKey: .homeRoutineOverrides
@@ -170,6 +211,7 @@ struct RosterPersonalizationSnapshot: Codable, Equatable, Sendable {
         try container.encode(schemaVersion, forKey: .schemaVersion)
         try container.encodeIfPresent(homeRoutine, forKey: .homeRoutine)
         try container.encode(briefingRecords, forKey: .briefingRecords)
+        try container.encode(actualFlightRecords, forKey: .actualFlightRecords)
         try container.encode(
             homeRoutineOverrides,
             forKey: .homeRoutineOverrides
@@ -246,6 +288,8 @@ final class WAIRosterPersonalizationController: ObservableObject {
     @Published private(set) var homeRoutine: RosterHomeRoutineSettings?
     @Published private(set) var briefingRecords:
         [String: RosterLegBriefingRecord] = [:]
+    @Published private(set) var actualFlightRecords:
+        [String: RosterLegActualFlightRecord] = [:]
     @Published private(set) var homeRoutineOverrides:
         [String: RosterHomeRoutineOverrideRecord] = [:]
     @Published private(set) var stayRoutineOverrides:
@@ -302,6 +346,48 @@ final class WAIRosterPersonalizationController: ObservableObject {
 
     func briefing(for legID: String) -> RosterLegBriefingRecord? {
         briefingRecords[legID]
+    }
+
+    func actualFlight(for legID: String) -> RosterLegActualFlightRecord? {
+        actualFlightRecords[legID]
+    }
+
+    @discardableResult
+    func recordTakeoff(for legID: String, at date: Date) -> Bool {
+        let record = RosterLegActualFlightRecord(
+            legID: legID,
+            takeoffAt: date,
+            landingAt: nil,
+            updatedAt: now()
+        )
+        guard record.isValid else {
+            saveFailed = true
+            return false
+        }
+        var actuals = actualFlightRecords
+        actuals[legID] = record
+        return saveActualFlights(actuals)
+    }
+
+    @discardableResult
+    func recordLanding(
+        for legID: String,
+        takeoffAt: Date,
+        landingAt: Date
+    ) -> Bool {
+        let record = RosterLegActualFlightRecord(
+            legID: legID,
+            takeoffAt: takeoffAt,
+            landingAt: landingAt,
+            updatedAt: now()
+        )
+        guard record.isValid else {
+            saveFailed = true
+            return false
+        }
+        var actuals = actualFlightRecords
+        actuals[legID] = record
+        return saveActualFlights(actuals)
     }
 
     func homeRoutineOverride(
@@ -492,6 +578,7 @@ final class WAIRosterPersonalizationController: ObservableObject {
         ownerUserID = nil
         homeRoutine = nil
         briefingRecords = [:]
+        actualFlightRecords = [:]
         homeRoutineOverrides = [:]
         stayRoutineOverrides = [:]
         saveFailed = false
@@ -502,7 +589,8 @@ final class WAIRosterPersonalizationController: ObservableObject {
         homeRoutine: RosterHomeRoutineSettings?,
         records: [RosterLegBriefingRecord],
         overrides: [RosterHomeRoutineOverrideRecord],
-        stayOverrides: [RosterStayRoutineOverrideRecord]
+        stayOverrides: [RosterStayRoutineOverrideRecord],
+        actuals: [RosterLegActualFlightRecord]? = nil
     ) -> Bool {
         guard state == .ready, let ownerUserID else {
             saveFailed = true
@@ -511,6 +599,8 @@ final class WAIRosterPersonalizationController: ObservableObject {
         let snapshot = RosterPersonalizationSnapshot(
             homeRoutine: homeRoutine,
             briefingRecords: records,
+            actualFlightRecords: actuals
+                ?? Array(actualFlightRecords.values),
             homeRoutineOverrides: overrides,
             stayRoutineOverrides: stayOverrides
         )
@@ -537,6 +627,11 @@ final class WAIRosterPersonalizationController: ObservableObject {
                 ($0.legID, $0)
             }
         )
+        actualFlightRecords = Dictionary(
+            uniqueKeysWithValues: snapshot.actualFlightRecords.map {
+                ($0.legID, $0)
+            }
+        )
         homeRoutineOverrides = Dictionary(
             uniqueKeysWithValues: snapshot.homeRoutineOverrides.map {
                 ($0.dutyID, $0)
@@ -558,9 +653,25 @@ final class WAIRosterPersonalizationController: ObservableObject {
         return trimmed.isEmpty ? nil : trimmed
     }
 
+    private func saveActualFlights(
+        _ records: [String: RosterLegActualFlightRecord]
+    ) -> Bool {
+        let limited = records.values
+            .sorted { $0.updatedAt > $1.updatedAt }
+            .prefix(500)
+        return save(
+            homeRoutine: homeRoutine,
+            records: Array(briefingRecords.values),
+            overrides: Array(homeRoutineOverrides.values),
+            stayOverrides: Array(stayRoutineOverrides.values),
+            actuals: Array(limited)
+        )
+    }
+
     private func failSecureStorage() {
         homeRoutine = nil
         briefingRecords = [:]
+        actualFlightRecords = [:]
         homeRoutineOverrides = [:]
         stayRoutineOverrides = [:]
         saveFailed = false

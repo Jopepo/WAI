@@ -231,7 +231,53 @@ struct RosterPersonalizationControllerTests {
 
         #expect(snapshot.homeRoutineOverrides.isEmpty)
         #expect(snapshot.stayRoutineOverrides.isEmpty)
+        #expect(snapshot.actualFlightRecords.isEmpty)
         #expect(snapshot.isValid)
+    }
+
+    @Test func actualFlightPersistsTakeoffAndLanding() throws {
+        let store = StubRosterPersonalizationStore()
+        let controller = makeController(store: store)
+        controller.prepare(for: ownerID)
+        let takeoff = now.addingTimeInterval(120)
+        let landing = takeoff.addingTimeInterval(97 * 60)
+
+        #expect(controller.recordTakeoff(for: "leg-1", at: takeoff))
+        #expect(controller.actualFlight(for: "leg-1")?.landingAt == nil)
+        #expect(
+            controller.recordLanding(
+                for: "leg-1",
+                takeoffAt: takeoff,
+                landingAt: landing
+            )
+        )
+
+        let actual = try #require(
+            store.snapshot?.actualFlightRecords.first
+        )
+        #expect(actual.takeoffAt == takeoff)
+        #expect(actual.landingAt == landing)
+        #expect(actual.durationMinutes == 97)
+
+        let restored = makeController(store: store)
+        restored.prepare(for: ownerID)
+        #expect(restored.actualFlight(for: "leg-1") == actual)
+    }
+
+    @Test func landingBeforeTakeoffIsRejectedWithoutReplacingRecord() {
+        let store = StubRosterPersonalizationStore()
+        let controller = makeController(store: store)
+        controller.prepare(for: ownerID)
+        #expect(controller.recordTakeoff(for: "leg-1", at: now))
+
+        #expect(
+            !controller.recordLanding(
+                for: "leg-1",
+                takeoffAt: now,
+                landingAt: now.addingTimeInterval(-60)
+            )
+        )
+        #expect(controller.actualFlight(for: "leg-1")?.landingAt == nil)
     }
 
     @Test func passwordRemainsAfterMemoryResetUntilExplicitlyRemoved() throws {

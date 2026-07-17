@@ -14,6 +14,8 @@ struct WAI3AccessRootView: View {
         WAIRosterPersonalizationController
     @StateObject private var calculationHistoryStore: CalculationHistoryStore
     @StateObject private var hotelStayStore: HotelStayStore
+    @StateObject private var watchFlightCoordinator:
+        WAIWatchFlightCoordinator
     @StateObject private var privacyShieldController =
         WAI3PrivacyShieldWindowController()
     private let approvalEmail: String
@@ -40,6 +42,9 @@ struct WAI3AccessRootView: View {
         _hotelStayStore = StateObject(
             wrappedValue: runtime.hotelStayStore
         )
+        _watchFlightCoordinator = StateObject(
+            wrappedValue: runtime.watchFlightCoordinator
+        )
         approvalEmail = runtime.configuration.approvalEmail
         privacyPolicyURL = runtime.configuration.privacyPolicyURL
     }
@@ -62,6 +67,12 @@ struct WAI3AccessRootView: View {
             }
             .onChange(of: scenePhase) {
                 handleScenePhase(scenePhase)
+            }
+            .onChange(of: rosterController.state) {
+                publishWatchFlight()
+            }
+            .onChange(of: personalizationController.actualFlightRecords) {
+                publishWatchFlight()
             }
             .onReceive(
                 NotificationCenter.default.publisher(
@@ -212,6 +223,8 @@ struct WAI3AccessRootView: View {
             personalizationController.prepare(for: access.userID)
             calculationHistoryStore.prepare(for: access.userID)
             hotelStayStore.prepare(for: access.userID)
+            watchFlightCoordinator.start()
+            publishWatchFlight()
             Task {
                 await operationalDataController.prepare(for: access)
             }
@@ -228,6 +241,13 @@ struct WAI3AccessRootView: View {
             calculationHistoryStore.resetProtectedMemory()
             hotelStayStore.resetProtectedMemory()
         }
+    }
+
+    private func publishWatchFlight() {
+        watchFlightCoordinator.publish(
+            duties: rosterController.currentDuties,
+            actualFlights: personalizationController.actualFlightRecords
+        )
     }
 
     private var presentedApprovedAccess: WAIApprovedAccess? {

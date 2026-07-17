@@ -11,6 +11,7 @@ final class WAI3Runtime {
     let personalizationController: WAIRosterPersonalizationController
     let calculationHistoryStore: CalculationHistoryStore
     let hotelStayStore: HotelStayStore
+    let watchFlightCoordinator: WAIWatchFlightCoordinator
 
     init(configuration: WAI3SecureConfiguration) throws {
         try WAI3LegacyDataSanitizer.production().sanitize()
@@ -81,5 +82,46 @@ final class WAI3Runtime {
         personalizationController = WAIRosterPersonalizationController(
             store: personalizationStore
         )
+        watchFlightCoordinator = WAIWatchFlightCoordinator()
+        watchFlightCoordinator.actionHandler = {
+            [weak personalizationController, weak rosterController,
+             weak watchFlightCoordinator] action in
+            guard let personalizationController,
+                  let rosterController else { return }
+            switch action {
+            case .takeoff(let legID, let date):
+                guard personalizationController.recordTakeoff(
+                    for: legID,
+                    at: date
+                ) else { return }
+            case .landing(let legID, let takeoffAt, let landingAt):
+                guard personalizationController.recordLanding(
+                    for: legID,
+                    takeoffAt: takeoffAt,
+                    landingAt: landingAt
+                ),
+                let (duty, leg) = rosterController.dutyAndLeg(
+                    for: legID
+                ),
+                let actual = personalizationController.actualFlight(
+                    for: legID
+                ) else { return }
+                let passengerLoad = personalizationController.briefing(
+                    for: legID
+                )?.passengerLoad ?? leg.passengerLoad
+                Task {
+                    await rosterController.syncActualFlightToCalendar(
+                        duty: duty,
+                        leg: leg,
+                        actual: actual,
+                        passengerLoad: passengerLoad
+                    )
+                }
+            }
+            watchFlightCoordinator?.publish(
+                duties: rosterController.currentDuties,
+                actualFlights: personalizationController.actualFlightRecords
+            )
+        }
     }
 }

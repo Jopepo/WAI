@@ -297,6 +297,19 @@ final class WAIRosterController: ObservableObject {
         briefingCalendarSyncStates[legID]
     }
 
+    var currentDuties: [RosterDuty] {
+        currentArchive.duties
+    }
+
+    func dutyAndLeg(for legID: String) -> (RosterDuty, RosterLeg)? {
+        for duty in currentArchive.duties {
+            if let leg = duty.legs.first(where: { $0.id == legID }) {
+                return (duty, leg)
+            }
+        }
+        return nil
+    }
+
     func syncBriefingToCalendar(
         duty: RosterDuty,
         leg: RosterLeg,
@@ -313,6 +326,42 @@ final class WAIRosterController: ObservableObject {
                 duty: duty,
                 leg: leg,
                 plannedFlightMinutes: plannedFlightMinutes
+            )
+            briefingCalendarSyncStates[leg.id] = switch result {
+            case .synced(let calendarTitle):
+                .synced(calendarTitle: calendarTitle)
+            case .removed(let calendarTitle):
+                .removed(calendarTitle: calendarTitle)
+            case .notAuthorized:
+                .notAuthorized
+            case .sourceEventNotFound:
+                .sourceEventNotFound
+            case .readOnly:
+                .readOnly
+            }
+        } catch {
+            briefingCalendarSyncStates[leg.id] = .failed
+        }
+    }
+
+    func syncActualFlightToCalendar(
+        duty: RosterDuty,
+        leg: RosterLeg,
+        actual: RosterLegActualFlightRecord,
+        passengerLoad: String?
+    ) async {
+        guard ownerUserID != nil else {
+            briefingCalendarSyncStates[leg.id] = .failed
+            return
+        }
+        briefingCalendarSyncStates[leg.id] = .syncing
+
+        do {
+            let result = try calendarSource.syncActualFlightEvent(
+                duty: duty,
+                leg: leg,
+                actual: actual,
+                passengerLoad: passengerLoad
             )
             briefingCalendarSyncStates[leg.id] = switch result {
             case .synced(let calendarTitle):

@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		B30000012FF0000000000001 /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = B30000032FF0000000000003 /* Auth */; };
+		B40000012FF1000000000001 /* WAIWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = B40000032FF1000000000003 /* WAIWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -25,12 +26,34 @@
 			remoteGlobalIDString = 1A7EEA2B2FBC9D70003368C1;
 			remoteInfo = WAI;
 		};
+		B40000022FF1000000000002 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1A7EEA242FBC9D70003368C1 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B40000102FF1000000000010;
+			remoteInfo = WAIWatch;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		B40000042FF1000000000004 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				B40000012FF1000000000001 /* WAIWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		1A7EEA2C2FBC9D70003368C1 /* WAI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WAI.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1A7EEA3C2FBC9D71003368C1 /* WAITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WAITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1A7EEA462FBC9D71003368C1 /* WAIUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WAIUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B40000032FF1000000000003 /* WAIWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WAIWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -63,6 +86,11 @@
 			path = WAIUITests;
 			sourceTree = "<group>";
 		};
+		B40000082FF1000000000008 /* WAIWatch */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = WAIWatch;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -88,6 +116,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B40000052FF1000000000005 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -104,6 +139,7 @@
 				1A7EEA2E2FBC9D70003368C1 /* WAI */,
 				1A7EEA3F2FBC9D71003368C1 /* WAITests */,
 				1A7EEA492FBC9D71003368C1 /* WAIUITests */,
+				B40000082FF1000000000008 /* WAIWatch */,
 				1A72A5532FBD11470003942D /* Frameworks */,
 				1A7EEA2D2FBC9D70003368C1 /* Products */,
 			);
@@ -115,6 +151,7 @@
 				1A7EEA2C2FBC9D70003368C1 /* WAI.app */,
 				1A7EEA3C2FBC9D71003368C1 /* WAITests.xctest */,
 				1A7EEA462FBC9D71003368C1 /* WAIUITests.xctest */,
+				B40000032FF1000000000003 /* WAIWatch.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -129,10 +166,12 @@
 				1A7EEA282FBC9D70003368C1 /* Sources */,
 				1A7EEA292FBC9D70003368C1 /* Frameworks */,
 				1A7EEA2A2FBC9D70003368C1 /* Resources */,
+				B40000042FF1000000000004 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				B40000112FF1000000000011 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				1A7EEA2E2FBC9D70003368C1 /* WAI */,
@@ -191,6 +230,28 @@
 			productReference = 1A7EEA462FBC9D71003368C1 /* WAIUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		B40000102FF1000000000010 /* WAIWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B40000222FF1000000000022 /* Build configuration list for PBXNativeTarget "WAIWatch" */;
+			buildPhases = (
+				B40000072FF1000000000007 /* Sources */,
+				B40000052FF1000000000005 /* Frameworks */,
+				B40000062FF1000000000006 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				B40000082FF1000000000008 /* WAIWatch */,
+			);
+			name = WAIWatch;
+			packageProductDependencies = (
+			);
+			productName = WAIWatch;
+			productReference = B40000032FF1000000000003 /* WAIWatch.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -211,6 +272,9 @@
 					1A7EEA452FBC9D71003368C1 = {
 						CreatedOnToolsVersion = 16.2;
 						TestTargetID = 1A7EEA2B2FBC9D70003368C1;
+					};
+					B40000102FF1000000000010 = {
+						CreatedOnToolsVersion = 26.0;
 					};
 				};
 			};
@@ -234,6 +298,7 @@
 				1A7EEA2B2FBC9D70003368C1 /* WAI */,
 				1A7EEA3B2FBC9D71003368C1 /* WAITests */,
 				1A7EEA452FBC9D71003368C1 /* WAIUITests */,
+				B40000102FF1000000000010 /* WAIWatch */,
 			);
 		};
 /* End PBXProject section */
@@ -254,6 +319,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		1A7EEA442FBC9D71003368C1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B40000062FF1000000000006 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -284,6 +356,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B40000072FF1000000000007 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -296,6 +375,11 @@
 			isa = PBXTargetDependency;
 			target = 1A7EEA2B2FBC9D70003368C1 /* WAI */;
 			targetProxy = 1A7EEA472FBC9D71003368C1 /* PBXContainerItemProxy */;
+		};
+		B40000112FF1000000000011 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B40000102FF1000000000010 /* WAIWatch */;
+			targetProxy = B40000022FF1000000000002 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -577,6 +661,58 @@
 			};
 			name = Release;
 		};
+		B40000202FF1000000000020 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(WAI_APP_BUILD_NUMBER)";
+				DEVELOPMENT_TEAM = P7W32JTSBD;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = WAI;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.jplabs.WAI;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = "$(WAI_APP_MARKETING_VERSION)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.jplabs.WAI.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 11.0;
+			};
+			name = Debug;
+		};
+		B40000212FF1000000000021 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(WAI_APP_BUILD_NUMBER)";
+				DEVELOPMENT_TEAM = P7W32JTSBD;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = WAI;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.jplabs.WAI;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = "$(WAI_APP_MARKETING_VERSION)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.jplabs.WAI.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 11.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -612,6 +748,15 @@
 			buildConfigurations = (
 				1A7EEA572FBC9D71003368C1 /* Debug */,
 				1A7EEA582FBC9D71003368C1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B40000222FF1000000000022 /* Build configuration list for PBXNativeTarget "WAIWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B40000202FF1000000000020 /* Debug */,
+				B40000212FF1000000000021 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

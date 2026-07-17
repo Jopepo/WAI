@@ -4,6 +4,23 @@ import Testing
 
 @MainActor
 struct RosterCalendarSourceTests {
+    @Test func actualFlightDescriptionIsStableAndExcludesPassword() {
+        let notes = EventKitRosterCalendarSource.actualFlightNotes(
+            passengerLoad: "154",
+            durationMinutes: 97
+        )
+
+        #expect(
+            notes == """
+            Flight preparation
+            PAX: 154
+            Flight time: 01:37
+            Recorded by WAI on Apple Watch
+            """
+        )
+        #expect(!notes.localizedCaseInsensitiveContains("password"))
+    }
+
     private let importedAt = Date(timeIntervalSince1970: 1_784_112_400)
 
     @Test func structuredFlightInGenericCalendarIsRecognized() throws {
