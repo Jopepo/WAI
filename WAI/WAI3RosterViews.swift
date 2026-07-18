@@ -2971,7 +2971,8 @@ private struct WAI3RotationBriefingModeView: View {
                             rosterBlockMinutes: analysis?.analysis(for: leg.id)?.blockMinutes,
                             stations: stations,
                             controller: controller,
-                            rosterController: rosterController
+                            rosterController: rosterController,
+                            briefingMode: true
                         )
                     } label: {
                         VStack(alignment: .leading, spacing: 5) {
@@ -3624,6 +3625,7 @@ private struct WAI3LegBriefingEditView: View {
     let stations: [Station]
     @ObservedObject var controller: WAIRosterPersonalizationController
     @ObservedObject var rosterController: WAIRosterController
+    var briefingMode = false
 
     @State private var passengerLoad = ""
     @State private var usesCustomFlightTime = false
@@ -3644,36 +3646,38 @@ private struct WAI3LegBriefingEditView: View {
 
     var body: some View {
         Form {
-            Section("Flight") {
-                LabeledContent(
-                    "Route",
-                    value: "\(leg.originIATA) - \(leg.destinationIATA)"
-                )
-                LabeledContent(
-                    "Destination",
-                    value: leg.destinationName ?? leg.destinationIATA
-                )
-                LabeledContent(
-                    "Departure",
-                    value: WAI3RosterFormatting.localDateTime(leg.departure, stationIATA: leg.originIATA)
-                )
-                LabeledContent(
-                    "Arrival",
-                    value: WAI3RosterFormatting.localDateTime(leg.arrival, stationIATA: leg.destinationIATA)
-                )
-                LabeledContent(
-                    "Roster duration",
-                    value: rosterFlightMinutes.map(
-                        WAI3RosterFormatting.duration
-                    ) ?? "Time zone unresolved"
-                )
-                if let aircraftName = leg.aircraftName {
-                    LabeledContent("Aircraft type", value: aircraftName)
+            if !briefingMode {
+                Section("Flight") {
+                    LabeledContent(
+                        "Route",
+                        value: "\(leg.originIATA) - \(leg.destinationIATA)"
+                    )
+                    LabeledContent(
+                        "Destination",
+                        value: leg.destinationName ?? leg.destinationIATA
+                    )
+                    LabeledContent(
+                        "Departure",
+                        value: WAI3RosterFormatting.localDateTime(leg.departure, stationIATA: leg.originIATA)
+                    )
+                    LabeledContent(
+                        "Arrival",
+                        value: WAI3RosterFormatting.localDateTime(leg.arrival, stationIATA: leg.destinationIATA)
+                    )
+                    LabeledContent(
+                        "Roster duration",
+                        value: rosterFlightMinutes.map(
+                            WAI3RosterFormatting.duration
+                        ) ?? "Time zone unresolved"
+                    )
+                    if let aircraftName = leg.aircraftName {
+                        LabeledContent("Aircraft type", value: aircraftName)
+                    }
+                    if let registration = leg.aircraftRegistration {
+                        LabeledContent("Tail", value: registration)
+                    }
+                    LabeledContent("Aircraft layout", value: "Coming soon")
                 }
-                if let registration = leg.aircraftRegistration {
-                    LabeledContent("Tail", value: registration)
-                }
-                LabeledContent("Aircraft layout", value: "Coming soon")
             }
 
             Section("Passengers") {
@@ -3801,11 +3805,6 @@ private struct WAI3LegBriefingEditView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Section("Special passengers") {
-                Text("INF (—)   WCHS (—)   WCHR (—)")
-                Text("WCHC (—)   UM (—)   NAV (—)")
-            }
-
             Section("Briefing notes") {
                 TextEditor(text: $additionalNotes)
                     .frame(minHeight: 90)
@@ -3816,23 +3815,30 @@ private struct WAI3LegBriefingEditView: View {
                     }
             }
 
-            weatherSection
+            if !briefingMode {
+                Section("Special passengers") {
+                    Text("INF (—)   WCHS (—)   WCHR (—)")
+                    Text("WCHC (—)   UM (—)   NAV (—)")
+                }
 
-            if !leg.crew.isEmpty {
-                Section("Crew") {
-                    ForEach(leg.crew) { member in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(member.name)
-                                .fontWeight(.medium)
-                            HStack(spacing: 10) {
-                                Text(member.roleCode)
-                                Text(member.employeeIdentifier)
-                                if member.isDeadhead {
-                                    Text("DHC")
+                weatherSection
+
+                if !leg.crew.isEmpty {
+                    Section("Crew") {
+                        ForEach(leg.crew) { member in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(member.name)
+                                    .fontWeight(.medium)
+                                HStack(spacing: 10) {
+                                    Text(member.roleCode)
+                                    Text(member.employeeIdentifier)
+                                    if member.isDeadhead {
+                                        Text("DHC")
+                                    }
                                 }
+                                .font(.caption.monospaced())
+                                .foregroundStyle(.secondary)
                             }
-                            .font(.caption.monospaced())
-                            .foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -3853,6 +3859,7 @@ private struct WAI3LegBriefingEditView: View {
         .scrollDismissesKeyboard(.interactively)
         .onAppear(perform: load)
         .task(id: weatherStationCodes) {
+            guard !briefingMode else { return }
             await loadWeather()
         }
         .alert(
