@@ -741,7 +741,7 @@ private struct WAI3RosterAnalysisView: View {
                             )
                             .fontWeight(.semibold)
                             Text(
-                                "\(WAI3RosterFormatting.localDateTime(item.departure)) - \(WAI3RosterFormatting.localDateTime(item.arrival))"
+                                "\(WAI3RosterFormatting.localDateTime(item.departure, stationIATA: item.originIATA)) - \(WAI3RosterFormatting.localDateTime(item.arrival, stationIATA: item.destinationIATA))"
                             )
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -1953,7 +1953,7 @@ private struct WAI3DutyDetailView: View {
                             WAI3TimelineEventRow(
                                 kind: .hotel,
                                 title: "Overnight stay",
-                                detail: "\(leg.destinationIATA) · next departure \(WAI3RosterFormatting.localDateTime(nextLeg.departure))",
+                                detail: "\(leg.destinationIATA) · next departure \(WAI3RosterFormatting.localDateTime(nextLeg.departure, stationIATA: nextLeg.originIATA))",
                                 secondary: "Hotel details unavailable",
                                 showsDisclosure: false
                             )
@@ -2140,10 +2140,10 @@ private struct WAI3DutyDetailView: View {
                                     .foregroundStyle(.secondary)
                             }
                             HStack(spacing: 10) {
-                                Text(WAI3RosterFormatting.localDateTime(leg.departure))
+                                Text(WAI3RosterFormatting.localDateTime(leg.departure, stationIATA: leg.originIATA))
                                 Image(systemName: "arrow.right")
                                     .font(.caption)
-                                Text(WAI3RosterFormatting.localDateTime(leg.arrival))
+                                Text(WAI3RosterFormatting.localDateTime(leg.arrival, stationIATA: leg.destinationIATA))
                                 Spacer(minLength: 4)
                                 Text(effectiveFlightTime(for: leg, briefing: briefing))
                             }
@@ -2444,14 +2444,10 @@ private struct WAI3TimeContextButton: View {
             )
         } label: {
             HStack(spacing: 4) {
-                if let stationIATA {
-                    Text(stationIATA)
-                        .font(.caption2.weight(.semibold))
-                }
                 Text(displayedDate)
                     .font(.caption.monospacedDigit())
-                Text("· (displayTimeZoneLabel)")
-                    .font(.caption2)
+                Text("· \(displayZoneCode)")
+                    .font(.caption2.weight(.semibold))
             }
             .foregroundStyle(.secondary)
         }
@@ -2471,17 +2467,19 @@ private struct WAI3TimeContextButton: View {
         return formatter.string(from: date)
     }
 
-    private var displayTimeZoneLabel: String {
+    private var displayZoneCode: String {
         if displayTimeZoneIdentifier == localTimeZoneIdentifier {
-            return "Escala"
+            return stationIATA ?? zoneAbbreviation
         }
         if displayTimeZoneIdentifier == "Europe/Lisbon" {
             return "LIS"
         }
-        return displayTimeZoneIdentifier
-            .split(separator: "/")
-            .last
-            .map(String.init) ?? displayTimeZoneIdentifier
+        return zoneAbbreviation
+    }
+
+    private var zoneAbbreviation: String {
+        TimeZone(identifier: displayTimeZoneIdentifier)?
+            .abbreviation(for: date) ?? displayTimeZoneIdentifier
     }
 }
 
@@ -3626,11 +3624,11 @@ private struct WAI3LegBriefingEditView: View {
                 )
                 LabeledContent(
                     "Departure",
-                    value: WAI3RosterFormatting.localDateTime(leg.departure)
+                    value: WAI3RosterFormatting.localDateTime(leg.departure, stationIATA: leg.originIATA)
                 )
                 LabeledContent(
                     "Arrival",
-                    value: WAI3RosterFormatting.localDateTime(leg.arrival)
+                    value: WAI3RosterFormatting.localDateTime(leg.arrival, stationIATA: leg.destinationIATA)
                 )
                 LabeledContent(
                     "Roster duration",
@@ -4337,7 +4335,13 @@ private enum WAI3RosterFormatting {
             format: "HH:mm",
             timeZoneIdentifier: duty.endTimeZoneIdentifier
         )
-        return "\(startFormatter.string(from: duty.start)) - \(endFormatter.string(from: duty.end))"
+        let start = startFormatter.string(from: duty.start)
+        let end = endFormatter.string(from: duty.end)
+        guard let first = duty.legs.first,
+              let last = duty.legs.last else {
+            return "\(start) - \(end)"
+        }
+        return "\(start) · \(first.originIATA) - \(end) · \(last.destinationIATA)"
     }
 
     static func dutyStart(_ duty: RosterDuty) -> String {
@@ -4363,6 +4367,13 @@ private enum WAI3RosterFormatting {
         let hour = String(format: "%02d", value.hour)
         let minute = String(format: "%02d", value.minute)
         return "\(day) \(month(value.month)) \(value.year), \(hour):\(minute)"
+    }
+
+    static func localDateTime(
+        _ value: RosterLocalDateTime,
+        stationIATA: String
+    ) -> String {
+        "\(localDateTime(value)) · \(stationIATA)"
     }
 
     static func compactWindow(
