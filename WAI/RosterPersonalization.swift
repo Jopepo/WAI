@@ -20,7 +20,24 @@ struct RosterLegBriefingRecord: Codable, Equatable, Sendable, Identifiable {
     let passengerLoad: String?
     let plannedFlightMinutes: Int?
     let commanderPassword: String?
+    let additionalNotes: String?
     let updatedAt: Date
+
+    init(
+        legID: String,
+        passengerLoad: String?,
+        plannedFlightMinutes: Int?,
+        commanderPassword: String?,
+        additionalNotes: String? = nil,
+        updatedAt: Date
+    ) {
+        self.legID = legID
+        self.passengerLoad = passengerLoad
+        self.plannedFlightMinutes = plannedFlightMinutes
+        self.commanderPassword = commanderPassword
+        self.additionalNotes = additionalNotes
+        self.updatedAt = updatedAt
+    }
 
     var id: String {
         legID
@@ -30,6 +47,7 @@ struct RosterLegBriefingRecord: Codable, Equatable, Sendable, Identifiable {
         passengerLoad == nil
         && plannedFlightMinutes == nil
         && commanderPassword == nil
+        && additionalNotes == nil
     }
 
     var isValid: Bool {
@@ -38,6 +56,7 @@ struct RosterLegBriefingRecord: Codable, Equatable, Sendable, Identifiable {
         && validOptionalText(passengerLoad, maximumBytes: 128)
         && plannedFlightMinutes.map { (1...1_440).contains($0) } != false
         && validOptionalText(commanderPassword, maximumBytes: 256)
+        && validOptionalText(additionalNotes, maximumBytes: 1_024)
         && updatedAt.timeIntervalSinceReferenceDate.isFinite
         && !isEmpty
     }
@@ -54,6 +73,21 @@ struct RosterLegBriefingRecord: Codable, Equatable, Sendable, Identifiable {
         && value.unicodeScalars.allSatisfy {
             !CharacterSet.controlCharacters.contains($0)
         }
+    }
+}
+
+struct RosterRestOverrideRecord: Codable, Equatable, Sendable, Identifiable {
+    let assessmentID: String
+    let minimumRestMinutes: Int
+    let updatedAt: Date
+
+    var id: String { assessmentID }
+
+    var isValid: Bool {
+        !assessmentID.isEmpty
+        && assessmentID.utf8.count <= 1_024
+        && (1...2_880).contains(minimumRestMinutes)
+        && updatedAt.timeIntervalSinceReferenceDate.isFinite
     }
 }
 
@@ -135,6 +169,7 @@ struct RosterPersonalizationSnapshot: Codable, Equatable, Sendable {
     let actualFlightRecords: [RosterLegActualFlightRecord]
     let homeRoutineOverrides: [RosterHomeRoutineOverrideRecord]
     let stayRoutineOverrides: [RosterStayRoutineOverrideRecord]
+    let restOverrides: [RosterRestOverrideRecord]
 
     init(
         schemaVersion: Int = currentSchemaVersion,
@@ -142,7 +177,8 @@ struct RosterPersonalizationSnapshot: Codable, Equatable, Sendable {
         briefingRecords: [RosterLegBriefingRecord],
         actualFlightRecords: [RosterLegActualFlightRecord] = [],
         homeRoutineOverrides: [RosterHomeRoutineOverrideRecord] = [],
-        stayRoutineOverrides: [RosterStayRoutineOverrideRecord] = []
+        stayRoutineOverrides: [RosterStayRoutineOverrideRecord] = [],
+        restOverrides: [RosterRestOverrideRecord] = []
     ) {
         self.schemaVersion = schemaVersion
         self.homeRoutine = homeRoutine
@@ -150,6 +186,7 @@ struct RosterPersonalizationSnapshot: Codable, Equatable, Sendable {
         self.actualFlightRecords = actualFlightRecords
         self.homeRoutineOverrides = homeRoutineOverrides
         self.stayRoutineOverrides = stayRoutineOverrides
+        self.restOverrides = restOverrides
     }
 
     var isValid: Bool {
@@ -170,6 +207,9 @@ struct RosterPersonalizationSnapshot: Codable, Equatable, Sendable {
         && stayRoutineOverrides.allSatisfy(\.isValid)
         && Set(stayRoutineOverrides.map(\.stayID)).count
             == stayRoutineOverrides.count
+        && restOverrides.count <= 500
+        && restOverrides.allSatisfy(\.isValid)
+        && Set(restOverrides.map(\.assessmentID)).count == restOverrides.count
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -179,6 +219,7 @@ struct RosterPersonalizationSnapshot: Codable, Equatable, Sendable {
         case actualFlightRecords
         case homeRoutineOverrides
         case stayRoutineOverrides
+        case restOverrides
     }
 
     init(from decoder: Decoder) throws {
@@ -204,6 +245,10 @@ struct RosterPersonalizationSnapshot: Codable, Equatable, Sendable {
             [RosterStayRoutineOverrideRecord].self,
             forKey: .stayRoutineOverrides
         ) ?? []
+        restOverrides = try container.decodeIfPresent(
+            [RosterRestOverrideRecord].self,
+            forKey: .restOverrides
+        ) ?? []
     }
 
     func encode(to encoder: Encoder) throws {
@@ -220,6 +265,7 @@ struct RosterPersonalizationSnapshot: Codable, Equatable, Sendable {
             stayRoutineOverrides,
             forKey: .stayRoutineOverrides
         )
+        try container.encode(restOverrides, forKey: .restOverrides)
     }
 }
 
@@ -294,6 +340,8 @@ final class WAIRosterPersonalizationController: ObservableObject {
         [String: RosterHomeRoutineOverrideRecord] = [:]
     @Published private(set) var stayRoutineOverrides:
         [String: RosterStayRoutineOverrideRecord] = [:]
+    @Published private(set) var restOverrides:
+        [String: RosterRestOverrideRecord] = [:]
     @Published private(set) var saveFailed = false
 
     private let store: RosterPersonalizationStoring
@@ -317,7 +365,8 @@ final class WAIRosterPersonalizationController: ObservableObject {
                 ?? RosterPersonalizationSnapshot(
                     homeRoutine: nil,
                     briefingRecords: [],
-                    homeRoutineOverrides: []
+                    homeRoutineOverrides: [],
+                    restOverrides: []
                 )
             guard snapshot.isValid else {
                 failSecureStorage()
@@ -332,7 +381,8 @@ final class WAIRosterPersonalizationController: ObservableObject {
                     RosterPersonalizationSnapshot(
                         homeRoutine: nil,
                         briefingRecords: [],
-                        homeRoutineOverrides: []
+                        homeRoutineOverrides: [],
+                        restOverrides: []
                     )
                 )
                 state = .ready
@@ -400,6 +450,10 @@ final class WAIRosterPersonalizationController: ObservableObject {
         for stayID: String
     ) -> RosterStayRoutineOverrideRecord? {
         stayRoutineOverrides[stayID]
+    }
+
+    func restOverride(for assessmentID: String) -> RosterRestOverrideRecord? {
+        restOverrides[assessmentID]
     }
 
     @discardableResult
@@ -532,20 +586,61 @@ final class WAIRosterPersonalizationController: ObservableObject {
     }
 
     @discardableResult
+    func setRestOverride(
+        for assessmentID: String,
+        minimumRestMinutes: Int
+    ) -> Bool {
+        let record = RosterRestOverrideRecord(
+            assessmentID: assessmentID,
+            minimumRestMinutes: minimumRestMinutes,
+            updatedAt: now()
+        )
+        guard record.isValid else {
+            saveFailed = true
+            return false
+        }
+        var overrides = restOverrides
+        overrides[assessmentID] = record
+        return save(
+            homeRoutine: homeRoutine,
+            records: Array(briefingRecords.values),
+            overrides: Array(homeRoutineOverrides.values),
+            stayOverrides: Array(stayRoutineOverrides.values),
+            restOverrides: Array(overrides.values)
+        )
+    }
+
+    @discardableResult
+    func clearRestOverride(for assessmentID: String) -> Bool {
+        var overrides = restOverrides
+        overrides.removeValue(forKey: assessmentID)
+        return save(
+            homeRoutine: homeRoutine,
+            records: Array(briefingRecords.values),
+            overrides: Array(homeRoutineOverrides.values),
+            stayOverrides: Array(stayRoutineOverrides.values),
+            restOverrides: Array(overrides.values)
+        )
+    }
+
+    @discardableResult
     func setBriefing(
         for legID: String,
         passengerLoad: String,
         plannedFlightMinutes: Int?,
-        commanderPassword: String
+        commanderPassword: String,
+        additionalNotes: String = ""
     ) -> Bool {
         let normalizedPassengerLoad = normalized(passengerLoad)
         let normalizedPassword = normalized(commanderPassword)
+        let normalizedNotes = normalized(additionalNotes)
         var records = briefingRecords
         let record = RosterLegBriefingRecord(
             legID: legID,
             passengerLoad: normalizedPassengerLoad,
             plannedFlightMinutes: plannedFlightMinutes,
             commanderPassword: normalizedPassword,
+            additionalNotes: normalizedNotes,
             updatedAt: now()
         )
 
@@ -581,6 +676,7 @@ final class WAIRosterPersonalizationController: ObservableObject {
         actualFlightRecords = [:]
         homeRoutineOverrides = [:]
         stayRoutineOverrides = [:]
+        restOverrides = [:]
         saveFailed = false
         state = .idle
     }
@@ -590,6 +686,7 @@ final class WAIRosterPersonalizationController: ObservableObject {
         records: [RosterLegBriefingRecord],
         overrides: [RosterHomeRoutineOverrideRecord],
         stayOverrides: [RosterStayRoutineOverrideRecord],
+        restOverrides: [RosterRestOverrideRecord]? = nil,
         actuals: [RosterLegActualFlightRecord]? = nil
     ) -> Bool {
         guard state == .ready, let ownerUserID else {
@@ -602,7 +699,8 @@ final class WAIRosterPersonalizationController: ObservableObject {
             actualFlightRecords: actuals
                 ?? Array(actualFlightRecords.values),
             homeRoutineOverrides: overrides,
-            stayRoutineOverrides: stayOverrides
+            stayRoutineOverrides: stayOverrides,
+            restOverrides: restOverrides ?? Array(self.restOverrides.values)
         )
         guard snapshot.isValid else {
             saveFailed = true
@@ -642,6 +740,11 @@ final class WAIRosterPersonalizationController: ObservableObject {
                 ($0.stayID, $0)
             }
         )
+        restOverrides = Dictionary(
+            uniqueKeysWithValues: snapshot.restOverrides.map {
+                ($0.assessmentID, $0)
+            }
+        )
     }
 
     private func minutes(from start: Date, to end: Date) -> Int {
@@ -674,6 +777,7 @@ final class WAIRosterPersonalizationController: ObservableObject {
         actualFlightRecords = [:]
         homeRoutineOverrides = [:]
         stayRoutineOverrides = [:]
+        restOverrides = [:]
         saveFailed = false
         state = .failedSecureStorage
     }

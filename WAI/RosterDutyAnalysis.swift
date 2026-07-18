@@ -46,6 +46,44 @@ struct RosterRestAssessment: Equatable, Sendable, Identifiable {
     var id: String {
         "\(previousDutyID)|\(previousPeriodIndex)|\(currentDutyID)|\(currentPeriodIndex)"
     }
+
+    func applyingMinimumRestOverride(_ minimumRestMinutes: Int)
+        -> RosterRestAssessment
+    {
+        let boundedMinimum = min(max(minimumRestMinutes, 1), 2_880)
+        let hardFloor = reviewReasons.contains("Confirm the two required local nights")
+            ? 36 * 60
+            : 0
+        let required = transitionMinutes.map {
+            max(hardFloor, boundedMinimum + $0)
+        }
+        let adjustedCompliance: RosterRestCompliance
+        if let required, availableChocksMinutes < required {
+            adjustedCompliance = .shortfall(
+                minutes: required - availableChocksMinutes
+            )
+        } else if let required {
+            adjustedCompliance = .compliant(
+                marginMinutes: availableChocksMinutes - required
+            )
+        } else {
+            adjustedCompliance = .needsReview
+        }
+        return RosterRestAssessment(
+            previousDutyID: previousDutyID,
+            currentDutyID: currentDutyID,
+            previousPeriodIndex: previousPeriodIndex,
+            currentPeriodIndex: currentPeriodIndex,
+            stationIATA: stationIATA,
+            location: location,
+            availableChocksMinutes: availableChocksMinutes,
+            minimumRestMinutes: boundedMinimum,
+            transitionMinutes: transitionMinutes,
+            requiredChocksMinutes: required,
+            compliance: adjustedCompliance,
+            reviewReasons: reviewReasons
+        )
+    }
 }
 
 struct RosterFlightPeriodAnalysis: Equatable, Sendable, Identifiable {

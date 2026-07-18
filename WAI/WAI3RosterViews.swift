@@ -1589,11 +1589,12 @@ private struct WAI3DutyDetailView: View {
     @State private var selectedHotel: Hotel?
     @State private var showingHomeRoutineSettings = false
     @State private var selectedRoutineEditor: WAI3RoutineEditorSelection?
+    @State private var selectedRestEditor: RosterRestAssessment?
 
     var body: some View {
         NavigationStack {
             List {
-                Section(duty.kind == .flight ? "Roster event" : "Roster activity") {
+                Section(duty.kind == .flight ? "Rotation" : "Roster activity") {
                     LabeledContent("Activity", value: duty.activityCode)
                     LabeledContent(
                         duty.kind == .flight ? "Report" : "Start",
@@ -1641,25 +1642,60 @@ private struct WAI3DutyDetailView: View {
                     if let hotelCode = duty.hotelCode {
                         LabeledContent("Hotel", value: hotelCode)
                     }
+                    if let briefingLeadMinutes {
+                        LabeledContent(
+                            "Briefing",
+                            value: WAI3RosterFormatting.duration(briefingLeadMinutes)
+                        )
+                    }
                 }
 
                 briefingSection
 
+                if duty.kind == .flight {
+                    Section("Briefing mode") {
+                        NavigationLink {
+                            WAI3RotationBriefingModeView(
+                                duty: duty,
+                                analysis: analysis,
+                                stations: stations,
+                                controller: personalizationController,
+                                rosterController: rosterController
+                            )
+                        } label: {
+                            Label(
+                                "Open briefing mode",
+                                systemImage: "slider.horizontal.3"
+                            )
+                        }
+                    }
+                }
+
+                rotationChecksSection
+
+                if duty.kind == .flight {
+                    WAI3RotationWeatherSummary(duty: duty, stations: stations)
+                }
+
                 if let analysis, !analysis.restAssessments.isEmpty {
-                    Section("Minimum rest") {
+                        Section("Minimum rest") {
                         ForEach(analysis.restAssessments) { rest in
-                            VStack(alignment: .leading, spacing: 6) {
+                            let displayedRest = restAssessmentForDisplay(rest)
+                            Button {
+                                selectedRestEditor = rest
+                            } label: {
+                                VStack(alignment: .leading, spacing: 6) {
                                 LabeledContent(
                                     "Location",
-                                    value: "\(rest.stationIATA) · \(rest.location == .base ? "Base" : "Away")"
+                                    value: "\(displayedRest.stationIATA) · \(displayedRest.location == .base ? "Base" : "Away")"
                                 )
                                 LabeledContent(
                                     "Available chocks to chocks",
                                     value: WAI3RosterFormatting.duration(
-                                        rest.availableChocksMinutes
+                                        displayedRest.availableChocksMinutes
                                     )
                                 )
-                                if let required = rest.requiredChocksMinutes {
+                                if let required = displayedRest.requiredChocksMinutes {
                                     LabeledContent(
                                         "Required chocks to chocks",
                                         value: WAI3RosterFormatting.duration(
@@ -1667,66 +1703,27 @@ private struct WAI3DutyDetailView: View {
                                         )
                                     )
                                 }
-                                restStatusLabel(rest.compliance)
-                                ForEach(rest.reviewReasons, id: \.self) { reason in
+                                restStatusLabel(displayedRest.compliance)
+                                if personalizationController.restOverride(for: rest.id) != nil {
+                                    Label("Manual minimum", systemImage: "slider.horizontal.3")
+                                        .font(.caption)
+                                        .foregroundStyle(.blue)
+                                }
+                                ForEach(displayedRest.reviewReasons, id: \.self) { reason in
                                     Text(reason)
                                         .font(.caption)
                                         .foregroundStyle(.orange)
                                 }
+                                }
+                                .foregroundStyle(.primary)
                             }
+                            .buttonStyle(.plain)
                             .padding(.vertical, 3)
                         }
                     }
                 }
 
-                crewSection
-
                 homeDepartureSection
-
-                if let analysis, !analysis.flightPeriods.isEmpty {
-                    Section("Flight periods") {
-                        ForEach(analysis.flightPeriods) { period in
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Period \(period.index)")
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                LabeledContent(
-                                    "Legs",
-                                    value: "\(period.legIDs.count)"
-                                )
-                                LabeledContent(
-                                    period.unresolvedLegCount == 0
-                                        ? "Block time"
-                                        : "Resolved block time",
-                                    value: WAI3RosterFormatting.duration(
-                                        period.resolvedBlockMinutes
-                                    )
-                                )
-                                if let window = period.flyingWindowMinutes {
-                                    LabeledContent(
-                                        "Flying window",
-                                        value: WAI3RosterFormatting.duration(window)
-                                    )
-                                }
-                                if let ground = period.groundToNextPeriodMinutes {
-                                    LabeledContent(
-                                        "Ground interval",
-                                        value: WAI3RosterFormatting.duration(ground)
-                                    )
-                                }
-                                if period.unresolvedLegCount > 0 {
-                                    Label(
-                                        "\(period.unresolvedLegCount) leg time needs verification",
-                                        systemImage: "exclamationmark.triangle"
-                                    )
-                                    .font(.caption)
-                                    .foregroundStyle(.orange)
-                                }
-                            }
-                            .padding(.vertical, 4)
-                        }
-                    }
-                }
 
                 if let stay {
                     Section("Stay") {
@@ -1856,6 +1853,13 @@ private struct WAI3DutyDetailView: View {
                 controller: personalizationController
             )
         }
+        .sheet(item: $selectedRestEditor) { rest in
+            WAI3RestOverrideSheet(
+                assessment: rest,
+                override: personalizationController.restOverride(for: rest.id),
+                controller: personalizationController
+            )
+        }
         .sheet(isPresented: $showingHomeRoutineSettings) {
             WAI3HomeRoutineSettingsView(
                 stations: stations,
@@ -1886,6 +1890,14 @@ private struct WAI3DutyDetailView: View {
             Label("Needs review", systemImage: "exclamationmark.triangle")
                 .foregroundStyle(.orange)
         }
+    }
+
+    private func restAssessmentForDisplay(
+        _ rest: RosterRestAssessment
+    ) -> RosterRestAssessment {
+        guard let override = personalizationController.restOverride(for: rest.id)
+        else { return rest }
+        return rest.applyingMinimumRestOverride(override.minimumRestMinutes)
     }
 
     @ViewBuilder
@@ -2013,43 +2025,20 @@ private struct WAI3DutyDetailView: View {
                                     .font(.caption.monospacedDigit())
                                     .foregroundStyle(.secondary)
                             }
-                            ViewThatFits(in: .horizontal) {
-                                HStack(spacing: 14) {
-                                    briefingMetric(
-                                        "Pax",
-                                        value: briefing?.passengerLoad
-                                            ?? leg.passengerLoad
-                                            ?? "Not set"
-                                    )
-                                    briefingMetric(
-                                        "Flight",
-                                        value: effectiveFlightTime(
-                                            for: leg,
-                                            briefing: briefing
-                                        )
-                                    )
-                                    briefingMetric(
-                                        "Password",
-                                        value: briefing?.commanderPassword == nil
-                                            ? "Not set"
-                                            : "Saved"
-                                    )
-                                }
-                                VStack(alignment: .leading, spacing: 3) {
-                                    briefingMetric(
-                                        "Pax",
-                                        value: briefing?.passengerLoad
-                                            ?? leg.passengerLoad
-                                            ?? "Not set"
-                                    )
-                                    briefingMetric(
-                                        "Flight",
-                                        value: effectiveFlightTime(
-                                            for: leg,
-                                            briefing: briefing
-                                        )
-                                    )
-                                }
+                            HStack(spacing: 10) {
+                                Text(WAI3RosterFormatting.localDateTime(leg.departure))
+                                Image(systemName: "arrow.right")
+                                    .font(.caption)
+                                Text(WAI3RosterFormatting.localDateTime(leg.arrival))
+                                Spacer(minLength: 4)
+                                Text(effectiveFlightTime(for: leg, briefing: briefing))
+                            }
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            if let destinationName = leg.destinationName {
+                                Text(destinationName)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
                             }
                             if let actual {
                                 actualFlightSummary(actual, leg: leg)
@@ -2217,6 +2206,44 @@ private struct WAI3DutyDetailView: View {
         )
     }
 
+    private var briefingLeadMinutes: Int? {
+        guard duty.kind == .flight,
+              let departure = duty.legs.first?.departure.instant else {
+            return nil
+        }
+        let minutes = Int(departure.timeIntervalSince(duty.start) / 60)
+        return (1...1_440).contains(minutes) ? minutes : nil
+    }
+
+    @ViewBuilder
+    private var rotationChecksSection: some View {
+        if let analysis {
+            let longIntervals = analysis.flightPeriods.compactMap { period in
+                period.groundToNextPeriodMinutes.flatMap { minutes in
+                    minutes >= 180 ? (period.index, minutes) : nil
+                }
+            }
+            if analysis.unresolvedLegCount > 0 || !longIntervals.isEmpty {
+                Section("Operational checks") {
+                    if analysis.unresolvedLegCount > 0 {
+                        Label(
+                            "\(analysis.unresolvedLegCount) leg times need verification",
+                            systemImage: "exclamationmark.triangle"
+                        )
+                        .foregroundStyle(.orange)
+                    }
+                    ForEach(longIntervals, id: \.0) { period, minutes in
+                        Label(
+                            "Long ground interval after period \(period): \(WAI3RosterFormatting.duration(minutes))",
+                            systemImage: "pause.circle"
+                        )
+                        .foregroundStyle(.orange)
+                    }
+                }
+            }
+        }
+    }
+
     private func effectiveFlightTime(
         for leg: RosterLeg,
         briefing: RosterLegBriefingRecord?
@@ -2226,6 +2253,214 @@ private struct WAI3DutyDetailView: View {
             return WAI3RosterFormatting.duration(minutes)
         }
         return "Not set"
+    }
+}
+
+private struct WAI3RotationBriefingModeView: View {
+    let duty: RosterDuty
+    let analysis: RosterDutyAnalysis?
+    let stations: [Station]
+    @ObservedObject var controller: WAIRosterPersonalizationController
+    @ObservedObject var rosterController: WAIRosterController
+
+    var body: some View {
+        List {
+            Section {
+                Text("Review each leg in order. Roster duration remains the default until you choose a briefing value.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Flights") {
+                ForEach(duty.legs) { leg in
+                    NavigationLink {
+                        WAI3LegBriefingEditView(
+                            duty: duty,
+                            leg: leg,
+                            rosterBlockMinutes: analysis?.analysis(for: leg.id)?.blockMinutes,
+                            stations: stations,
+                            controller: controller,
+                            rosterController: rosterController
+                        )
+                    } label: {
+                        VStack(alignment: .leading, spacing: 5) {
+                            HStack {
+                                Text(leg.flightNumber)
+                                    .font(.headline)
+                                Text("\(leg.originIATA) - \(leg.destinationIATA)")
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Text(WAI3RosterFormatting.legRange(leg))
+                                    .font(.caption.monospacedDigit())
+                                    .foregroundStyle(.secondary)
+                            }
+                            HStack(spacing: 12) {
+                                Text("Pax \(controller.briefing(for: leg.id)?.passengerLoad ?? leg.passengerLoad ?? "-")")
+                                Text(effectiveFlightTime(for: leg))
+                                if controller.briefing(for: leg.id)?.additionalNotes != nil {
+                                    Image(systemName: "note.text")
+                                }
+                            }
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Briefing mode")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func effectiveFlightTime(for leg: RosterLeg) -> String {
+        if let minutes = controller.briefing(for: leg.id)?.plannedFlightMinutes
+            ?? analysis?.analysis(for: leg.id)?.blockMinutes
+            ?? leg.blockMinutes {
+            return WAI3RosterFormatting.duration(minutes)
+        }
+        return "Time not set"
+    }
+}
+
+private struct WAI3RestOverrideSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let assessment: RosterRestAssessment
+    let override: RosterRestOverrideRecord?
+    @ObservedObject var controller: WAIRosterPersonalizationController
+    @State private var minimumRestMinutes = 0.0
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Minimum rest") {
+                    Text("Adjust the regulatory minimum only when the roster or operational data is known to be wrong.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Text(WAI3RosterFormatting.duration(Int(minimumRestMinutes)))
+                        .font(.title3.monospacedDigit())
+                    Slider(
+                        value: $minimumRestMinutes,
+                        in: 60...2_880,
+                        step: 15
+                    )
+                    .accessibilityIdentifier("wai3.rest.minimumSlider")
+                    LabeledContent(
+                        "Available chocks to chocks",
+                        value: WAI3RosterFormatting.duration(
+                            assessment.availableChocksMinutes
+                        )
+                    )
+                }
+                if override != nil {
+                    Section {
+                        Button("Restore calculated minimum", role: .destructive) {
+                            if controller.clearRestOverride(for: assessment.id) {
+                                dismiss()
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Adjust rest")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        if controller.setRestOverride(
+                            for: assessment.id,
+                            minimumRestMinutes: Int(minimumRestMinutes.rounded())
+                        ) {
+                            dismiss()
+                        }
+                    }
+                }
+            }
+            .onAppear {
+                minimumRestMinutes = Double(
+                    override?.minimumRestMinutes ?? assessment.minimumRestMinutes
+                )
+            }
+        }
+    }
+}
+
+private struct WAI3RotationWeatherSummary: View {
+    let duty: RosterDuty
+    let stations: [Station]
+    @State private var reports: [AviationWeatherReport] = []
+    @State private var isLoading = true
+
+    var body: some View {
+        Section("Weather and METAR") {
+            if isLoading {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text("Loading airport weather")
+                        .foregroundStyle(.secondary)
+                }
+            } else if reports.isEmpty {
+                Label("Weather unavailable", systemImage: "cloud.slash")
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(reports) { report in
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(report.icaoID)
+                            .font(.subheadline.monospaced())
+                            .fontWeight(.semibold)
+                        if let category = report.flightCategory {
+                            Text(category)
+                                .font(.caption)
+                                .foregroundStyle(categoryColor(category))
+                        }
+                        Spacer()
+                        Text(report.rawObservation)
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+            }
+        }
+        .task(id: stationCodes) {
+            await load()
+        }
+    }
+
+    private var stationCodes: [String] {
+        duty.legs.flatMap { [$0.originIATA, $0.destinationIATA] }
+            .compactMap { iata in
+                stations.first { $0.iata == iata }?.icao
+            }
+            .reduce(into: []) { result, code in
+                if !result.contains(code) { result.append(code) }
+            }
+    }
+
+    private func load() async {
+        guard !stationCodes.isEmpty else {
+            isLoading = false
+            return
+        }
+        isLoading = true
+        do {
+            reports = try await AviationWeatherService.reports(for: stationCodes)
+        } catch {
+            reports = []
+        }
+        isLoading = false
+    }
+
+    private func categoryColor(_ category: String) -> Color {
+        switch category.uppercased() {
+        case "VFR": .green
+        case "MVFR": .blue
+        case "IFR": .red
+        case "LIFR": .purple
+        default: .secondary
+        }
     }
 }
 
@@ -2704,6 +2939,7 @@ private struct WAI3LegBriefingEditView: View {
     @State private var flightHours = 0
     @State private var flightMinutes = 0
     @State private var commanderPassword = ""
+    @State private var additionalNotes = ""
     @State private var showsPassword = false
     @State private var isSaving = false
     @State private var weatherState: WeatherState = .idle
@@ -2723,6 +2959,10 @@ private struct WAI3LegBriefingEditView: View {
                     value: "\(leg.originIATA) - \(leg.destinationIATA)"
                 )
                 LabeledContent(
+                    "Destination",
+                    value: leg.destinationName ?? leg.destinationIATA
+                )
+                LabeledContent(
                     "Departure",
                     value: WAI3RosterFormatting.localDateTime(leg.departure)
                 )
@@ -2736,12 +2976,13 @@ private struct WAI3LegBriefingEditView: View {
                         WAI3RosterFormatting.duration
                     ) ?? "Time zone unresolved"
                 )
-                if let registration = leg.aircraftRegistration {
-                    LabeledContent("Aircraft", value: registration)
-                }
                 if let aircraftName = leg.aircraftName {
-                    LabeledContent("Type", value: aircraftName)
+                    LabeledContent("Aircraft type", value: aircraftName)
                 }
+                if let registration = leg.aircraftRegistration {
+                    LabeledContent("Tail", value: registration)
+                }
+                LabeledContent("Aircraft layout", value: "Coming soon")
             }
 
             Section("Passengers") {
@@ -2786,11 +3027,19 @@ private struct WAI3LegBriefingEditView: View {
                     }
                 }
 
-                WAI3DurationWheelPicker(
-                    hours: $flightHours,
-                    minutes: $flightMinutes,
-                    isEnabled: usesCustomFlightTime
-                )
+                if usesCustomFlightTime {
+                    Slider(
+                        value: Binding(
+                            get: { Double(customFlightMinutes ?? rosterFlightMinutes ?? 60) },
+                            set: { applyFlightMinutes(Int($0.rounded())) }
+                        ),
+                        in: sliderRange,
+                        step: 5
+                    )
+                    .accessibilityIdentifier("wai3.briefing.flightTimeSlider")
+                    Text(WAI3RosterFormatting.duration(customFlightMinutes ?? 0))
+                        .font(.title3.monospacedDigit())
+                }
 
                 if !usesCustomFlightTime, rosterFlightMinutes != nil {
                     Label("Using roster time", systemImage: "calendar")
@@ -2864,6 +3113,16 @@ private struct WAI3LegBriefingEditView: View {
             Section("Special passengers") {
                 Text("INF (—)   WCHS (—)   WCHR (—)")
                 Text("WCHC (—)   UM (—)   NAV (—)")
+            }
+
+            Section("Briefing notes") {
+                TextEditor(text: $additionalNotes)
+                    .frame(minHeight: 90)
+                    .onChange(of: additionalNotes) {
+                        if additionalNotes.utf8.count > 1_024 {
+                            additionalNotes = String(additionalNotes.prefix(1_024))
+                        }
+                    }
             }
 
             weatherSection
@@ -3083,6 +3342,7 @@ private struct WAI3LegBriefingEditView: View {
         }
         passengerLoad = briefing.passengerLoad ?? ""
         commanderPassword = briefing.commanderPassword ?? ""
+        additionalNotes = briefing.additionalNotes ?? ""
         if let minutes = briefing.plannedFlightMinutes {
             usesCustomFlightTime = true
             applyFlightMinutes(minutes)
@@ -3106,7 +3366,8 @@ private struct WAI3LegBriefingEditView: View {
             for: leg.id,
             passengerLoad: passengerLoad,
             plannedFlightMinutes: plannedFlightMinutes,
-            commanderPassword: commanderPassword
+            commanderPassword: commanderPassword,
+            additionalNotes: additionalNotes
         ) else {
             isSaving = false
             return
@@ -3118,6 +3379,11 @@ private struct WAI3LegBriefingEditView: View {
         )
         isSaving = false
         dismiss()
+    }
+
+    private var sliderRange: ClosedRange<Double> {
+        let roster = Double(rosterFlightMinutes ?? 60)
+        return max(30, roster - 120)...min(1_440, roster + 120)
     }
 }
 

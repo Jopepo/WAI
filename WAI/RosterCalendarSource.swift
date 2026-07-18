@@ -478,7 +478,8 @@ final class EventKitRosterCalendarSource: WAIRosterCalendarSourcing {
         sourceEvent.notes = Self.briefingNotes(
             sourceNotes: sourceEvent.notes ?? "",
             leg: leg,
-            plannedFlightMinutes: plannedFlightMinutes
+            plannedFlightMinutes: plannedFlightMinutes,
+            briefingLeadMinutes: briefingLeadMinutes(for: duty)
         )
         try eventStore.save(sourceEvent, span: .thisEvent, commit: true)
         try removeLegacyBriefingEvents(
@@ -535,10 +536,15 @@ final class EventKitRosterCalendarSource: WAIRosterCalendarSourcing {
     static func briefingNotes(
         sourceNotes: String,
         leg: RosterLeg,
-        plannedFlightMinutes: Int?
+        plannedFlightMinutes: Int?,
+        briefingLeadMinutes: Int? = nil
     ) -> String {
         let entry: String? = plannedFlightMinutes.map { minutes in
-            "\(briefingMarker(for: leg.id)) \(leg.flightNumber) \(leg.originIATA)-\(leg.destinationIATA) | Flight time: \(formattedDuration(minutes))"
+            var value = "\(briefingMarker(for: leg.id)) \(leg.flightNumber) \(leg.originIATA)-\(leg.destinationIATA) | Flight time: \(formattedDuration(minutes))"
+            if let briefingLeadMinutes {
+                value += " | Briefing: \(formattedDuration(briefingLeadMinutes)) before departure"
+            }
+            return value
         }
         return replacingManagedEntry(
             in: sourceNotes,
@@ -547,6 +553,14 @@ final class EventKitRosterCalendarSource: WAIRosterCalendarSourcing {
             entryMarker: briefingMarker(for: leg.id),
             entry: entry
         )
+    }
+
+    private func briefingLeadMinutes(for duty: RosterDuty) -> Int? {
+        guard let departure = duty.legs.first?.departure.instant else {
+            return nil
+        }
+        let minutes = Int(departure.timeIntervalSince(duty.start) / 60)
+        return (1...1_440).contains(minutes) ? minutes : nil
     }
 
     static func actualFlightNotes(

@@ -319,6 +319,25 @@ struct RosterCalendarSourceTests {
         #expect(updatedOutboundNotes.components(separatedBy: "WAI-BRIEFING-").count == 3)
     }
 
+    @Test func briefingNotesExposeRotationBriefingLeadForJarvis() {
+        let leg = leg(
+            id: "duty-1-0-TP754",
+            flightNumber: "TP754",
+            origin: "LIS",
+            destination: "CPH"
+        )
+
+        let notes = EventKitRosterCalendarSource.briefingNotes(
+            sourceNotes: "ACTIVIDADE: 2CPH3101P",
+            leg: leg,
+            plannedFlightMinutes: 185,
+            briefingLeadMinutes: 75
+        )
+
+        #expect(notes.contains("Briefing: 01:15 before departure"))
+        #expect(notes.contains("Flight time: 03:05"))
+    }
+
     @Test func clearingBriefingRemovesOnlyThatLegAndPreservesRosterNotes() {
         let outbound = leg(
             id: "duty-1-0-TP754",

@@ -3,6 +3,29 @@ import Testing
 @testable import WAI
 
 struct RosterDutyAnalysisTests {
+    @Test func manualMinimumRestOverrideRecalculatesChocksRequirement() {
+        let assessment = RosterRestAssessment(
+            previousDutyID: "previous",
+            currentDutyID: "current",
+            previousPeriodIndex: 1,
+            currentPeriodIndex: 1,
+            stationIATA: "LIS",
+            location: .base,
+            availableChocksMinutes: 1_500,
+            minimumRestMinutes: 780,
+            transitionMinutes: 240,
+            requiredChocksMinutes: 1_020,
+            compliance: .compliant(marginMinutes: 480),
+            reviewReasons: []
+        )
+
+        let adjusted = assessment.applyingMinimumRestOverride(900)
+
+        #expect(adjusted.minimumRestMinutes == 900)
+        #expect(adjusted.requiredChocksMinutes == 1_140)
+        #expect(adjusted.compliance == .compliant(marginMinutes: 360))
+    }
+
     @Test func resolvedLegRosterSpanAndIntervalUseAbsoluteInstants() throws {
         let first = flightDuty(
             id: "first",
