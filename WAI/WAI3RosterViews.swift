@@ -264,11 +264,23 @@ struct WAI3CrewWorkspaceView: View {
                     ForEach(groupedDuties(archive.duties), id: \.dateKey) { group in
                         Section(group.title) {
                             ForEach(group.duties) { duty in
+                                let analysis = analysesByDuty[duty.id]
+                                if let rest = analysis?.restAssessments.first(where: {
+                                    $0.previousDutyID != $0.currentDutyID
+                                }),
+                                   let previousDuty = archive.duties.first(where: {
+                                       $0.id == rest.previousDutyID
+                                   }) {
+                                    WAI3RotationRestRow(
+                                        previousDuty: previousDuty,
+                                        currentDuty: duty,
+                                        assessment: rest
+                                    )
+                                }
                                 let stay = staysByDuty[duty.id]
                                 let hotel = stay.flatMap {
                                     hotelDataService.hotel(for: $0.stationIATA)
                                 }
-                                let analysis = analysesByDuty[duty.id]
                                 let homeRoutine = RosterHomeRoutineBuilder.routine(
                                     for: duty,
                                     settings: personalizationController.homeRoutine,
@@ -2438,6 +2450,8 @@ private struct WAI3TimeContextButton: View {
                 }
                 Text(displayedDate)
                     .font(.caption.monospacedDigit())
+                Text("· (displayTimeZoneLabel)")
+                    .font(.caption2)
             }
             .foregroundStyle(.secondary)
         }
@@ -2455,6 +2469,19 @@ private struct WAI3TimeContextButton: View {
         formatter.timeZone = TimeZone(identifier: displayTimeZoneIdentifier)
         formatter.dateFormat = format
         return formatter.string(from: date)
+    }
+
+    private var displayTimeZoneLabel: String {
+        if displayTimeZoneIdentifier == localTimeZoneIdentifier {
+            return "Escala"
+        }
+        if displayTimeZoneIdentifier == "Europe/Lisbon" {
+            return "LIS"
+        }
+        return displayTimeZoneIdentifier
+            .split(separator: "/")
+            .last
+            .map(String.init) ?? displayTimeZoneIdentifier
     }
 }
 
@@ -2496,6 +2523,87 @@ private struct WAI3TimeContextSheet: View {
         formatter.timeZone = TimeZone(identifier: timeZoneIdentifier)
         formatter.dateFormat = "d MMM yyyy, HH:mm"
         return formatter.string(from: date)
+    }
+}
+
+private struct WAI3RotationRestRow: View {
+    let previousDuty: RosterDuty
+    let currentDuty: RosterDuty
+    let assessment: RosterRestAssessment
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(severityColor)
+                .frame(width: 4)
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Rest between rotations")
+                        .font(.caption.weight(.semibold))
+                    Spacer(minLength: 8)
+                    Text(severityLabel)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(severityColor)
+                }
+
+                Text("\(route(previousDuty)) → \(route(currentDuty))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 10) {
+                    Text("Available \(WAI3RosterFormatting.duration(assessment.availableChocksMinutes))")
+                    if let required = assessment.requiredChocksMinutes {
+                        Text("Required \(WAI3RosterFormatting.duration(required))")
+                    }
+                }
+                .font(.caption2.monospacedDigit())
+                .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 6)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            "Rest between rotations \(route(previousDuty)) to \(route(currentDuty)), \(severityLabel)"
+        )
+    }
+
+    private var severityLabel: String {
+        switch assessment.compliance {
+        case .shortfall(let minutes):
+            return "Critical · short by \(WAI3RosterFormatting.duration(minutes))"
+        case .needsReview:
+            return "Needs review"
+        case .compliant(let margin):
+            if margin >= 120 {
+                return "Comfortable · margin \(WAI3RosterFormatting.duration(margin))"
+            }
+            if margin >= 60 {
+                return "Watch · margin \(WAI3RosterFormatting.duration(margin))"
+            }
+            return "Tight · margin \(WAI3RosterFormatting.duration(margin))"
+        }
+    }
+
+    private var severityColor: Color {
+        switch assessment.compliance {
+        case .shortfall:
+            return .red
+        case .needsReview:
+            return .orange
+        case .compliant(let margin):
+            if margin >= 120 { return .green }
+            if margin >= 60 { return .yellow }
+            return .orange
+        }
+    }
+
+    private func route(_ duty: RosterDuty) -> String {
+        guard let first = duty.legs.first,
+              let last = duty.legs.last else {
+            return duty.activityCode
+        }
+        return "\(first.originIATA)-\(last.destinationIATA)"
     }
 }
 
