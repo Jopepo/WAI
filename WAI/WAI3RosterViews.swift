@@ -1590,6 +1590,7 @@ private struct WAI3DutyDetailView: View {
     @State private var showingHomeRoutineSettings = false
     @State private var selectedRoutineEditor: WAI3RoutineEditorSelection?
     @State private var selectedRestEditor: RosterRestAssessment?
+    @State private var selectedTimeReference: WAI3TimeReference?
     @AppStorage("wai3.timeline.timeDisplayMode")
     private var timelineTimeDisplayModeRaw =
         WAI3TimelineTimeDisplayMode.airportLocal.rawValue
@@ -1788,6 +1789,9 @@ private struct WAI3DutyDetailView: View {
                 controller: personalizationController
             )
         }
+        .sheet(item: $selectedTimeReference) { reference in
+            WAI3TimeContextSheet(reference: reference)
+        }
         .sheet(isPresented: $showingHomeRoutineSettings) {
             WAI3HomeRoutineSettingsView(
                 stations: stations,
@@ -1882,41 +1886,32 @@ private struct WAI3DutyDetailView: View {
                 .foregroundStyle(.secondary)
 
             if let homeRoutine {
-                Button {
-                    selectedRoutineEditor = .home(homeRoutine)
-                } label: {
-                    WAI3TimelineEventRow(
-                        kind: .home,
-                        title: "Home departure",
-                        detail: "Wake-up \(timelineDateTime(homeRoutine.wakeup, localTimeZone: homeRoutine.timeZoneIdentifier)) · Leave \(timelineDateTime(homeRoutine.leaveHome, localTimeZone: homeRoutine.timeZoneIdentifier))",
-                        secondary: "Report \(timelineDateTime(homeRoutine.report, localTimeZone: homeRoutine.timeZoneIdentifier)) · \(homeRoutine.stationIATA)",
-                        showsDisclosure: true
-                    )
-                }
-                .buttonStyle(.plain)
+                WAI3TimelineHomeRow(
+                    routine: homeRoutine,
+                    timeDisplayMode: timelineTimeDisplayMode,
+                    onEdit: { selectedRoutineEditor = .home(homeRoutine) },
+                    onTimeTap: { selectedTimeReference = $0 }
+                )
                 .accessibilityIdentifier("wai3.rotation.timeline.home")
             }
 
             ForEach(Array(duty.legs.enumerated()), id: \.element.id) { index, leg in
-                NavigationLink {
-                    WAI3LegBriefingEditView(
+                WAI3TimelineLegRow(
+                    destination: WAI3LegBriefingEditView(
                         duty: duty,
                         leg: leg,
                         rosterBlockMinutes: analysis?.analysis(for: leg.id)?.blockMinutes,
                         stations: stations,
                         controller: personalizationController,
                         rosterController: rosterController
-                    )
-                } label: {
-                    WAI3TimelineLegRow(
-                        leg: leg,
-                        blockMinutes: analysis?.analysis(for: leg.id)?.blockMinutes,
-                        plannedMinutes: personalizationController.briefing(for: leg.id)?.plannedFlightMinutes,
-                        timeDisplayMode: timelineTimeDisplayMode,
-                        isLast: index == duty.legs.count - 1
-                    )
-                }
-                .buttonStyle(.plain)
+                    ),
+                    leg: leg,
+                    blockMinutes: analysis?.analysis(for: leg.id)?.blockMinutes,
+                    plannedMinutes: personalizationController.briefing(for: leg.id)?.plannedFlightMinutes,
+                    timeDisplayMode: timelineTimeDisplayMode,
+                    isLast: index == duty.legs.count - 1,
+                    onTimeTap: { selectedTimeReference = $0 }
+                )
                 .accessibilityIdentifier("wai3.rotation.timeline.leg.\(leg.id)")
 
                 if let nextLeg = duty.legs.indices.contains(index + 1)
@@ -1926,22 +1921,21 @@ private struct WAI3DutyDetailView: View {
                         $0.legIDs.last == leg.id
                     }), RosterDutyAnalyzer.isOvernightBreak(after: period, in: duty) {
                         if let stay {
-                            Button {
-                                if case .calculated(let details) = stay.timingStatus {
-                                    selectedRoutineEditor = .stay(
-                                        stay: stay,
-                                        details: details,
-                                        override: personalizationController.stayRoutineOverride(for: stay.id)
-                                    )
-                                }
-                            } label: {
-                                WAI3TimelineStayRow(
-                                    stay: stay,
-                                    override: personalizationController.stayRoutineOverride(for: stay.id),
-                                    timeDisplayMode: timelineTimeDisplayMode
-                                )
-                            }
-                            .buttonStyle(.plain)
+                            WAI3TimelineStayRow(
+                                stay: stay,
+                                override: personalizationController.stayRoutineOverride(for: stay.id),
+                                timeDisplayMode: timelineTimeDisplayMode,
+                                onEdit: {
+                                    if case .calculated(let details) = stay.timingStatus {
+                                        selectedRoutineEditor = .stay(
+                                            stay: stay,
+                                            details: details,
+                                            override: personalizationController.stayRoutineOverride(for: stay.id)
+                                        )
+                                    }
+                                },
+                                onTimeTap: { selectedTimeReference = $0 }
+                            )
                             .accessibilityIdentifier("wai3.rotation.timeline.stay.\(stay.id)")
                         } else {
                             WAI3TimelineEventRow(
@@ -2402,6 +2396,161 @@ private enum WAI3TimelineEventKind {
     case gap
 }
 
+private struct WAI3TimeReference: Identifiable {
+    let id = UUID()
+    let title: String
+    let date: Date
+    let localTimeZoneIdentifier: String
+    let stationIATA: String?
+    let displayTimeZoneIdentifier: String
+}
+
+private enum WAI3TimeReferenceFormat {
+    case dateTime
+    case timeOnly
+}
+
+private struct WAI3TimeContextButton: View {
+    let title: String
+    let date: Date
+    let localTimeZoneIdentifier: String
+    let stationIATA: String?
+    let displayTimeZoneIdentifier: String
+    let format: WAI3TimeReferenceFormat
+    let action: (WAI3TimeReference) -> Void
+
+    var body: some View {
+        Button {
+            action(
+                WAI3TimeReference(
+                    title: title,
+                    date: date,
+                    localTimeZoneIdentifier: localTimeZoneIdentifier,
+                    stationIATA: stationIATA,
+                    displayTimeZoneIdentifier: displayTimeZoneIdentifier
+                )
+            )
+        } label: {
+            HStack(spacing: 4) {
+                if let stationIATA {
+                    Text(stationIATA)
+                        .font(.caption2.weight(.semibold))
+                }
+                Text(displayedDate)
+                    .font(.caption.monospacedDigit())
+            }
+            .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(title), \(displayedDate)")
+    }
+
+    private var displayedDate: String {
+        let format = switch format {
+        case .dateTime: "d MMM, HH:mm"
+        case .timeOnly: "HH:mm"
+        }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: displayTimeZoneIdentifier)
+        formatter.dateFormat = format
+        return formatter.string(from: date)
+    }
+}
+
+private struct WAI3TimeContextSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let reference: WAI3TimeReference
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section(reference.title) {
+                    LabeledContent("Local station", value: reference.stationIATA ?? "-" )
+                    LabeledContent("Time zone", value: reference.localTimeZoneIdentifier)
+                    LabeledContent(
+                        "Shown in timeline",
+                        value: formatted(reference.date, in: reference.displayTimeZoneIdentifier)
+                    )
+                    if reference.localTimeZoneIdentifier != "Europe/Lisbon" {
+                        LabeledContent(
+                            "Lisbon equivalent",
+                            value: formatted(reference.date, in: "Europe/Lisbon") + " LIS"
+                        )
+                    }
+                }
+            }
+            .navigationTitle("Time details")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private func formatted(_ date: Date, in timeZoneIdentifier: String) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: timeZoneIdentifier)
+        formatter.dateFormat = "d MMM yyyy, HH:mm"
+        return formatter.string(from: date)
+    }
+}
+
+private struct WAI3TimelineHomeRow: View {
+    let routine: RosterHomeRoutine
+    let timeDisplayMode: WAI3TimelineTimeDisplayMode
+    let onEdit: () -> Void
+    let onTimeTap: (WAI3TimeReference) -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "house")
+                .font(.subheadline)
+                .foregroundStyle(.blue)
+                .frame(width: 24, height: 24)
+                .background(.blue.opacity(0.12), in: Circle())
+
+            VStack(alignment: .leading, spacing: 5) {
+                Button("Home departure", action: onEdit)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .buttonStyle(.plain)
+
+                HStack(spacing: 10) {
+                    timeButton("Wake-up", routine.wakeup)
+                    timeButton("Leave home", routine.leaveHome)
+                }
+                timeButton("Report", routine.report)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 4)
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func timeButton(_ title: String, _ date: Date) -> some View {
+        WAI3TimeContextButton(
+            title: title,
+            date: date,
+            localTimeZoneIdentifier: routine.timeZoneIdentifier,
+            stationIATA: routine.stationIATA,
+            displayTimeZoneIdentifier: displayTimeZoneIdentifier,
+            format: .dateTime,
+            action: onTimeTap
+        )
+    }
+
+    private var displayTimeZoneIdentifier: String {
+        switch timeDisplayMode {
+        case .airportLocal: routine.timeZoneIdentifier
+        case .device: TimeZone.current.identifier
+        }
+    }
+}
+
 private struct WAI3TimelineEventRow: View {
     let kind: WAI3TimelineEventKind
     let title: String
@@ -2454,12 +2603,14 @@ private struct WAI3TimelineEventRow: View {
     }
 }
 
-private struct WAI3TimelineLegRow: View {
+private struct WAI3TimelineLegRow<Destination: View>: View {
+    let destination: Destination
     let leg: RosterLeg
     let blockMinutes: Int?
     let plannedMinutes: Int?
     let timeDisplayMode: WAI3TimelineTimeDisplayMode
     let isLast: Bool
+    let onTimeTap: (WAI3TimeReference) -> Void
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -2478,27 +2629,40 @@ private struct WAI3TimelineLegRow: View {
             .frame(width: 18)
 
             VStack(alignment: .leading, spacing: 5) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(leg.flightNumber)
-                        .font(.headline)
-                    Text(leg.originIATA + " - " + leg.destinationIATA)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Spacer(minLength: 4)
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
+                NavigationLink {
+                    destination
+                } label: {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(leg.flightNumber)
+                            .font(.headline)
+                        Text(leg.originIATA + " - " + leg.destinationIATA)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Spacer(minLength: 4)
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
                 }
-                Text(dateLabel)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                .buttonStyle(.plain)
                 HStack(spacing: 10) {
-                    Text(timeRange)
+                    timeButton(
+                        "Departure",
+                        date: leg.departure.instant,
+                        stationIATA: leg.originIATA,
+                        localTimeZoneIdentifier: leg.departure.timeZoneIdentifier
+                    )
                     Image(systemName: "arrow.right")
                         .font(.caption2)
+                    timeButton(
+                        "Arrival",
+                        date: leg.arrival.instant,
+                        stationIATA: leg.destinationIATA,
+                        localTimeZoneIdentifier: leg.arrival.timeZoneIdentifier
+                    )
                     Text(durationLabel)
+                        .font(.caption.monospacedDigit())
                 }
-                .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
             }
         }
@@ -2515,45 +2679,38 @@ private struct WAI3TimelineLegRow: View {
         return "Time not set"
     }
 
-    private var dateLabel: String {
-        switch timeDisplayMode {
-        case .airportLocal:
-            return WAI3RosterFormatting.localDateTime(leg.departure)
-                + " · local departure"
-        case .device:
-            guard let instant = leg.departure.instant else {
-                return WAI3RosterFormatting.localDateTime(leg.departure)
-            }
-            return WAI3RosterFormatting.compactDateTime(
-                instant,
-                timeZoneIdentifier: TimeZone.current.identifier
+    @ViewBuilder
+    private func timeButton(
+        _ title: String,
+        date: Date?,
+        stationIATA: String,
+        localTimeZoneIdentifier: String?
+    ) -> some View {
+        if let date, let localTimeZoneIdentifier {
+            WAI3TimeContextButton(
+                title: title,
+                date: date,
+                localTimeZoneIdentifier: localTimeZoneIdentifier,
+                stationIATA: stationIATA,
+                displayTimeZoneIdentifier: displayTimeZoneIdentifier(
+                    for: localTimeZoneIdentifier
+                ),
+                format: .dateTime,
+                action: onTimeTap
             )
+        } else {
+            Text("\(stationIATA) --:--")
+                .font(.caption.monospacedDigit())
         }
     }
 
-    private var timeRange: String {
+    private func displayTimeZoneIdentifier(for localTimeZoneIdentifier: String?) -> String {
         switch timeDisplayMode {
         case .airportLocal:
-            return "\(time(leg.departure)) \(leg.originIATA) → \(time(leg.arrival)) \(leg.destinationIATA)"
+            localTimeZoneIdentifier ?? TimeZone.current.identifier
         case .device:
-            guard let departure = leg.departure.instant,
-                  let arrival = leg.arrival.instant else {
-                return WAI3RosterFormatting.legRange(leg)
-            }
-            return "\(deviceTime(departure)) → \(deviceTime(arrival))"
+            TimeZone.current.identifier
         }
-    }
-
-    private func time(_ value: RosterLocalDateTime) -> String {
-        String(format: "%02d:%02d", value.hour, value.minute)
-    }
-
-    private func deviceTime(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone.current
-        formatter.dateFormat = "HH:mm"
-        return formatter.string(from: date)
     }
 }
 
@@ -2561,6 +2718,8 @@ private struct WAI3TimelineStayRow: View {
     let stay: RosterStay
     let override: RosterStayRoutineOverrideRecord?
     let timeDisplayMode: WAI3TimelineTimeDisplayMode
+    let onEdit: () -> Void
+    let onTimeTap: (WAI3TimeReference) -> Void
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -2571,66 +2730,82 @@ private struct WAI3TimelineStayRow: View {
                 .background(.indigo.opacity(0.12), in: Circle())
 
             VStack(alignment: .leading, spacing: 4) {
+                Button(stay.hotelName ?? stay.hotelCode, action: onEdit)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .buttonStyle(.plain)
                 HStack {
-                    Text(stay.hotelName ?? stay.hotelCode)
-                        .font(.subheadline.weight(.semibold))
                     Spacer(minLength: 4)
                     Image(systemName: "slider.horizontal.3")
                         .font(.caption)
                         .foregroundStyle(.blue)
                 }
                 if let arrival = stay.arrivalLeg {
-                    Text("Arrival \(dateTime(arrival.arrival))")
-                        .font(.caption.monospacedDigit())
+                    timeButton(
+                        "Arrival",
+                        date: arrival.arrival.instant,
+                        stationIATA: arrival.destinationIATA,
+                        localTimeZoneIdentifier: arrival.arrival.timeZoneIdentifier
+                    )
                 }
                 if let routine = RosterStayRoutineBuilder.routine(
                     for: stay,
                     override: override
                 ) {
-                    Text(
-                        "Wake-up \(routineDateTime(routine.wakeup)) · Pick-up \(routineDateTime(routine.pickup))"
-                    )
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                    HStack(spacing: 10) {
+                        timeButton(
+                            "Wake-up",
+                            date: routine.wakeup,
+                            stationIATA: stay.stationIATA,
+                            localTimeZoneIdentifier: stay.stationTimeZoneIdentifier
+                        )
+                        timeButton(
+                            "Pick-up",
+                            date: routine.pickup,
+                            stationIATA: stay.stationIATA,
+                            localTimeZoneIdentifier: stay.stationTimeZoneIdentifier
+                        )
+                    }
                 }
                 if let departure = stay.departureLeg {
-                    Text("Next departure \(dateTime(departure.departure))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    timeButton(
+                        "Next departure",
+                        date: departure.departure.instant,
+                        stationIATA: departure.originIATA,
+                        localTimeZoneIdentifier: departure.departure.timeZoneIdentifier
+                    )
                 }
             }
         }
         .padding(.vertical, 4)
     }
 
-    private func dateTime(_ value: RosterLocalDateTime) -> String {
-        switch timeDisplayMode {
-        case .airportLocal:
-            return WAI3RosterFormatting.localDateTime(value)
-        case .device:
-            guard let instant = value.instant else {
-                return WAI3RosterFormatting.localDateTime(value)
-            }
-            return WAI3RosterFormatting.compactDateTime(
-                instant,
-                timeZoneIdentifier: TimeZone.current.identifier
+    @ViewBuilder
+    private func timeButton(
+        _ title: String,
+        date: Date?,
+        stationIATA: String,
+        localTimeZoneIdentifier: String?
+    ) -> some View {
+        if let date, let localTimeZoneIdentifier {
+            WAI3TimeContextButton(
+                title: title,
+                date: date,
+                localTimeZoneIdentifier: localTimeZoneIdentifier,
+                stationIATA: stationIATA,
+                displayTimeZoneIdentifier: displayTimeZoneIdentifier,
+                format: .dateTime,
+                action: onTimeTap
             )
         }
     }
 
-    private func routineDateTime(_ date: Date) -> String {
-        let timeZoneIdentifier = stay.stationTimeZoneIdentifier ?? "UTC"
+    private var displayTimeZoneIdentifier: String {
         switch timeDisplayMode {
         case .airportLocal:
-            return WAI3RosterFormatting.compactDateTime(
-                date,
-                timeZoneIdentifier: timeZoneIdentifier
-            )
+            stay.stationTimeZoneIdentifier ?? TimeZone.current.identifier
         case .device:
-            return WAI3RosterFormatting.compactDateTime(
-                date,
-                timeZoneIdentifier: TimeZone.current.identifier
-            )
+            TimeZone.current.identifier
         }
     }
 }
