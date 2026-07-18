@@ -255,6 +255,48 @@ struct RosterDutyAnalysisTests {
         #expect(analysis.flightPeriods[1].resolvedBlockMinutes == 120)
     }
 
+    @Test func hotelBreakIsRecognizedAsOvernightInsteadOfLongGroundAlert() throws {
+        let rotation = flightDuty(
+            id: "overnight-rotation",
+            start: utcDate(2026, 7, 6, 13, 5),
+            end: utcDate(2026, 7, 8, 8, 20),
+            hotelCode: "MXPHIL",
+            legs: [
+                leg(
+                    id: "outbound",
+                    origin: "LIS",
+                    destination: "MXP",
+                    departure: resolvedUTC(2026, 7, 6, 14, 5),
+                    arrival: resolvedUTC(2026, 7, 6, 17, 30)
+                ),
+                leg(
+                    id: "inbound",
+                    origin: "MXP",
+                    destination: "LIS",
+                    departure: resolvedUTC(2026, 7, 8, 5, 50),
+                    arrival: resolvedUTC(2026, 7, 8, 7, 50)
+                )
+            ]
+        )
+
+        let analysis = try #require(
+            RosterDutyAnalyzer.analyze([rotation]).first
+        )
+
+        #expect(
+            RosterDutyAnalyzer.isOvernightBreak(
+                after: analysis.flightPeriods[0],
+                in: rotation
+            )
+        )
+        #expect(
+            !RosterDutyAnalyzer.isOvernightBreak(
+                after: analysis.flightPeriods[1],
+                in: rotation
+            )
+        )
+    }
+
     @Test func periodSummaryAggregatesOnlyObjectiveValues() {
         let first = flightDuty(
             id: "first",

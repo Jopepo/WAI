@@ -1594,63 +1594,22 @@ private struct WAI3DutyDetailView: View {
     var body: some View {
         NavigationStack {
             List {
-                Section(duty.kind == .flight ? "Rotation" : "Roster activity") {
-                    LabeledContent("Activity", value: duty.activityCode)
-                    LabeledContent(
-                        duty.kind == .flight ? "Report" : "Start",
-                        value: WAI3RosterFormatting.dutyStart(duty)
-                    )
-                    LabeledContent(
-                        duty.kind == .flight ? "Release" : "End",
-                        value: WAI3RosterFormatting.dutyEnd(duty)
-                    )
-                    if let analysis, duty.kind == .flight {
+                if duty.kind == .flight {
+                    rotationOverviewSection
+                    rotationTimelineSection
+                } else {
+                    Section("Roster activity") {
+                        LabeledContent("Activity", value: duty.activityCode)
                         LabeledContent(
-                            duty.hotelCode == nil ? "Roster span" : "Rotation span",
-                            value: WAI3RosterFormatting.duration(
-                                analysis.rosterSpanMinutes
-                            )
+                            "Start",
+                            value: WAI3RosterFormatting.dutyStart(duty)
                         )
-                        switch analysis.intervalBefore {
-                        case .overlap(let overlap):
-                            Label(
-                                "Overlaps the previous duty by \(WAI3RosterFormatting.duration(overlap))",
-                                systemImage: "exclamationmark.triangle"
-                            )
-                            .foregroundStyle(.orange)
-                        case .measured(let gap):
-                            LabeledContent(
-                                "Chocks to chocks",
-                                value: WAI3RosterFormatting.duration(gap)
-                            )
-                        case .interruptedByActivity:
-                            Label(
-                                "Interval needs activity review",
-                                systemImage: "exclamationmark.triangle"
-                            )
-                            .foregroundStyle(.orange)
-                        case .unresolvedChocks:
-                            Label(
-                                "Chocks interval needs time-zone review",
-                                systemImage: "clock.badge.exclamationmark"
-                            )
-                            .foregroundStyle(.orange)
-                        case .notApplicable, .firstFlight:
-                            EmptyView()
-                        }
-                    }
-                    if let hotelCode = duty.hotelCode {
-                        LabeledContent("Hotel", value: hotelCode)
-                    }
-                    if let briefingLeadMinutes {
                         LabeledContent(
-                            "Briefing",
-                            value: WAI3RosterFormatting.duration(briefingLeadMinutes)
+                            "End",
+                            value: WAI3RosterFormatting.dutyEnd(duty)
                         )
                     }
                 }
-
-                briefingSection
 
                 if duty.kind == .flight {
                     Section("Briefing mode") {
@@ -1722,8 +1681,6 @@ private struct WAI3DutyDetailView: View {
                         }
                     }
                 }
-
-                homeDepartureSection
 
                 if let stay {
                     Section("Stay") {
@@ -1798,38 +1755,6 @@ private struct WAI3DutyDetailView: View {
                             .accessibilityLabel("Edit room number")
                             .help("Edit room number")
                         }
-                        if let arrival = stay.arrivalLeg {
-                            LabeledContent(
-                                "Arrival",
-                                value: WAI3RosterFormatting.localDateTime(
-                                    arrival.arrival
-                                )
-                            )
-                        }
-                        if let departure = stay.departureLeg {
-                            LabeledContent(
-                                "Next departure",
-                                value: WAI3RosterFormatting.localDateTime(
-                                    departure.departure
-                                )
-                            )
-                        }
-                    }
-
-                    Section("Wake-up and pick-up") {
-                        WAI3StayTimingDetail(
-                            stay: stay,
-                            override: personalizationController
-                                .stayRoutineOverride(for: stay.id),
-                            editAction: { details in
-                                selectedRoutineEditor = .stay(
-                                    stay: stay,
-                                    details: details,
-                                    override: personalizationController
-                                        .stayRoutineOverride(for: stay.id)
-                                )
-                            }
-                        )
                     }
                 }
             }
@@ -1898,6 +1823,141 @@ private struct WAI3DutyDetailView: View {
         guard let override = personalizationController.restOverride(for: rest.id)
         else { return rest }
         return rest.applyingMinimumRestOverride(override.minimumRestMinutes)
+    }
+
+    private var rotationOverviewSection: some View {
+        Section("Rotation") {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(rotationRoute(duty))
+                        .font(.headline)
+                    Text(WAI3RosterFormatting.dutyRange(duty))
+                        .font(.subheadline.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 8)
+                if let analysis {
+                    Text(WAI3RosterFormatting.duration(analysis.rosterSpanMinutes))
+                        .font(.subheadline.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            if let briefingLeadMinutes {
+                Label(
+                    "Briefing \(WAI3RosterFormatting.duration(briefingLeadMinutes)) before report",
+                    systemImage: "person.2.wave.2"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func rotationRoute(_ duty: RosterDuty) -> String {
+        guard let first = duty.legs.first,
+              let last = duty.legs.last else {
+            return WAI3RosterFormatting.dutyRange(duty)
+        }
+        return "\(first.originIATA) - \(last.destinationIATA)"
+    }
+
+    @ViewBuilder
+    private var rotationTimelineSection: some View {
+        Section("Timeline") {
+            if let homeRoutine {
+                Button {
+                    selectedRoutineEditor = .home(homeRoutine)
+                } label: {
+                    WAI3TimelineEventRow(
+                        kind: .home,
+                        title: "Home departure",
+                        detail: "Wake-up \(WAI3RosterFormatting.compactDateTime(homeRoutine.wakeup, timeZoneIdentifier: homeRoutine.timeZoneIdentifier)) · Leave \(WAI3RosterFormatting.compactDateTime(homeRoutine.leaveHome, timeZoneIdentifier: homeRoutine.timeZoneIdentifier))",
+                        secondary: "Report \(WAI3RosterFormatting.compactDateTime(homeRoutine.report, timeZoneIdentifier: homeRoutine.timeZoneIdentifier)) · \(homeRoutine.stationIATA)",
+                        showsDisclosure: true
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("wai3.rotation.timeline.home")
+            }
+
+            ForEach(Array(duty.legs.enumerated()), id: \.element.id) { index, leg in
+                NavigationLink {
+                    WAI3LegBriefingEditView(
+                        duty: duty,
+                        leg: leg,
+                        rosterBlockMinutes: analysis?.analysis(for: leg.id)?.blockMinutes,
+                        stations: stations,
+                        controller: personalizationController,
+                        rosterController: rosterController
+                    )
+                } label: {
+                    WAI3TimelineLegRow(
+                        leg: leg,
+                        blockMinutes: analysis?.analysis(for: leg.id)?.blockMinutes,
+                        plannedMinutes: personalizationController.briefing(for: leg.id)?.plannedFlightMinutes,
+                        isLast: index == duty.legs.count - 1
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("wai3.rotation.timeline.leg.\(leg.id)")
+
+                if let nextLeg = duty.legs.indices.contains(index + 1)
+                    ? duty.legs[index + 1]
+                    : nil {
+                    if let period = analysis?.flightPeriods.first(where: {
+                        $0.legIDs.last == leg.id
+                    }), RosterDutyAnalyzer.isOvernightBreak(after: period, in: duty) {
+                        if let stay {
+                            Button {
+                                if case .calculated(let details) = stay.timingStatus {
+                                    selectedRoutineEditor = .stay(
+                                        stay: stay,
+                                        details: details,
+                                        override: personalizationController.stayRoutineOverride(for: stay.id)
+                                    )
+                                }
+                            } label: {
+                                WAI3TimelineStayRow(
+                                    stay: stay,
+                                    override: personalizationController.stayRoutineOverride(for: stay.id)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("wai3.rotation.timeline.stay.\(stay.id)")
+                        } else {
+                            WAI3TimelineEventRow(
+                                kind: .hotel,
+                                title: "Overnight stay",
+                                detail: "\(leg.destinationIATA) · next departure \(WAI3RosterFormatting.localDateTime(nextLeg.departure))",
+                                secondary: "Hotel details unavailable",
+                                showsDisclosure: false
+                            )
+                        }
+                    } else if let gap = chocksGapMinutes(from: leg, to: nextLeg), gap >= 120 {
+                        WAI3TimelineEventRow(
+                            kind: .gap,
+                            title: gap >= 180 ? "Long ground interval" : "Ground interval",
+                            detail: WAI3RosterFormatting.duration(gap),
+                            secondary: "Chocks to chocks",
+                            showsDisclosure: false
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private func chocksGapMinutes(
+        from leg: RosterLeg,
+        to nextLeg: RosterLeg
+    ) -> Int? {
+        guard let arrival = leg.arrival.instant,
+              let departure = nextLeg.departure.instant,
+              departure >= arrival else {
+            return nil
+        }
+        return Int(departure.timeIntervalSince(arrival) / 60)
     }
 
     @ViewBuilder
@@ -2218,8 +2278,15 @@ private struct WAI3DutyDetailView: View {
     @ViewBuilder
     private var rotationChecksSection: some View {
         if let analysis {
-            let longIntervals = analysis.flightPeriods.compactMap { period in
-                period.groundToNextPeriodMinutes.flatMap { minutes in
+            let longIntervals = analysis.flightPeriods.compactMap {
+                (period: RosterFlightPeriodAnalysis) -> (Int, Int)? in
+                guard !RosterDutyAnalyzer.isOvernightBreak(
+                    after: period,
+                    in: duty
+                ) else {
+                    return nil
+                }
+                return period.groundToNextPeriodMinutes.flatMap { minutes in
                     minutes >= 180 ? (period.index, minutes) : nil
                 }
             }
@@ -2253,6 +2320,171 @@ private struct WAI3DutyDetailView: View {
             return WAI3RosterFormatting.duration(minutes)
         }
         return "Not set"
+    }
+}
+
+private enum WAI3TimelineEventKind {
+    case home
+    case hotel
+    case gap
+}
+
+private struct WAI3TimelineEventRow: View {
+    let kind: WAI3TimelineEventKind
+    let title: String
+    let detail: String
+    let secondary: String
+    let showsDisclosure: Bool
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: iconName)
+                .font(.subheadline)
+                .foregroundStyle(iconColor)
+                .frame(width: 24, height: 24)
+                .background(iconColor.opacity(0.12), in: Circle())
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                Text(detail)
+                    .font(.caption.monospacedDigit())
+                Text(secondary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 4)
+            if showsDisclosure {
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var iconName: String {
+        switch kind {
+        case .home: "house"
+        case .hotel: "bed.double"
+        case .gap: "pause.circle"
+        }
+    }
+
+    private var iconColor: Color {
+        switch kind {
+        case .home: .blue
+        case .hotel: .indigo
+        case .gap: .orange
+        }
+    }
+}
+
+private struct WAI3TimelineLegRow: View {
+    let leg: RosterLeg
+    let blockMinutes: Int?
+    let plannedMinutes: Int?
+    let isLast: Bool
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(spacing: 0) {
+                Circle()
+                    .fill(.blue)
+                    .frame(width: 12, height: 12)
+                    .padding(.top, 6)
+                if !isLast {
+                    Rectangle()
+                        .fill(.blue.opacity(0.25))
+                        .frame(width: 2)
+                        .frame(minHeight: 44)
+                }
+            }
+            .frame(width: 18)
+
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(leg.flightNumber)
+                        .font(.headline)
+                    Text(leg.originIATA + " - " + leg.destinationIATA)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 4)
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                Text(WAI3RosterFormatting.localDateTime(leg.departure))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 10) {
+                    Text(WAI3RosterFormatting.legRange(leg))
+                    Image(systemName: "arrow.right")
+                        .font(.caption2)
+                    Text(durationLabel)
+                }
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var durationLabel: String {
+        if let plannedMinutes {
+            return WAI3RosterFormatting.duration(plannedMinutes)
+        }
+        if let blockMinutes {
+            return WAI3RosterFormatting.duration(blockMinutes)
+        }
+        return "Time not set"
+    }
+}
+
+private struct WAI3TimelineStayRow: View {
+    let stay: RosterStay
+    let override: RosterStayRoutineOverrideRecord?
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "bed.double")
+                .font(.subheadline)
+                .foregroundStyle(.indigo)
+                .frame(width: 24, height: 24)
+                .background(.indigo.opacity(0.12), in: Circle())
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(stay.hotelName ?? stay.hotelCode)
+                        .font(.subheadline.weight(.semibold))
+                    Spacer(minLength: 4)
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.caption)
+                        .foregroundStyle(.blue)
+                }
+                if let arrival = stay.arrivalLeg {
+                    Text("Arrival \(WAI3RosterFormatting.localDateTime(arrival.arrival))")
+                        .font(.caption.monospacedDigit())
+                }
+                if let routine = RosterStayRoutineBuilder.routine(
+                    for: stay,
+                    override: override
+                ) {
+                    Text(
+                        "Wake-up \(WAI3RosterFormatting.compactDateTime(routine.wakeup, timeZoneIdentifier: stay.stationTimeZoneIdentifier ?? "UTC")) · Pick-up \(WAI3RosterFormatting.compactDateTime(routine.pickup, timeZoneIdentifier: stay.stationTimeZoneIdentifier ?? "UTC"))"
+                    )
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                }
+                if let departure = stay.departureLeg {
+                    Text("Next departure \(WAI3RosterFormatting.localDateTime(departure.departure))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
 

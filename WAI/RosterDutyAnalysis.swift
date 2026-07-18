@@ -351,6 +351,18 @@ struct RosterDutyAnalyzer {
         return results
     }
 
+    static func isOvernightBreak(
+        after period: RosterFlightPeriodAnalysis,
+        in duty: RosterDuty
+    ) -> Bool {
+        guard let boundary = hotelBoundaryIndex(in: duty),
+              duty.legs.indices.contains(boundary),
+              period.legIDs.last == duty.legs[boundary].id else {
+            return false
+        }
+        return true
+    }
+
     private static func flightPeriods(
         for duty: RosterDuty
     ) -> [RosterFlightPeriodAnalysis] {
