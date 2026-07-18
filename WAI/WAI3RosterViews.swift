@@ -1875,10 +1875,41 @@ private struct WAI3DutyDetailView: View {
 
     private func rotationRoute(_ duty: RosterDuty) -> String {
         guard let first = duty.legs.first,
-              let last = duty.legs.last else {
-            return WAI3RosterFormatting.dutyRange(duty)
+              let stay,
+              let arrivalLeg = stay.arrivalLeg,
+              let departureLeg = stay.departureLeg else {
+            guard let first = duty.legs.first,
+                  let last = duty.legs.last else {
+                return WAI3RosterFormatting.dutyRange(duty)
+            }
+            return "\(first.originIATA) → \(last.destinationIATA)"
         }
-        return "\(first.originIATA) - \(last.destinationIATA)"
+
+        let outbound = "\(first.originIATA) → \(arrivalLeg.destinationIATA)"
+        let returnFlight = "\(departureLeg.originIATA) → \(departureLeg.destinationIATA)"
+        return "\(outbound) - 😴 x\(nightCount(for: stay)) - \(returnFlight)"
+    }
+
+    private func nightCount(for stay: RosterStay) -> Int {
+        guard let arrival = stay.arrivalLeg?.arrival.instant,
+              let departure = stay.departureLeg?.departure.instant else {
+            return 1
+        }
+        let timeZone = TimeZone(
+            identifier: stay.stationTimeZoneIdentifier ?? "UTC"
+        ) ?? .gmt
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        let arrivalDay = calendar.startOfDay(for: arrival)
+        let departureDay = calendar.startOfDay(for: departure)
+        return max(
+            1,
+            calendar.dateComponents(
+                [.day],
+                from: arrivalDay,
+                to: departureDay
+            ).day ?? 1
+        )
     }
 
     @ViewBuilder
