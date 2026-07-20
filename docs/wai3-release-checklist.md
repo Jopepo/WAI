@@ -73,7 +73,7 @@ item below is complete.
 - [ ] The migrations have been executed and inspected on staging PostgreSQL.
   Type-check and run the Edge Function in its Deno runtime before completing
   this release gate.
-- [ ] Publish a staging release from the current REV73/REV52 source documents.
+- [ ] Publish a staging release from the current REV74/REV52 source documents.
 - [ ] Test a valid update, interrupted download, invalid hash, invalid schema,
   rollback, oversized response, offline start, and recovery after connectivity.
 

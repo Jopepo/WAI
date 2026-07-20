@@ -25,6 +25,7 @@ EXPECTED_URLS = {
 EXPECTED_JSON_FILES = {
     "wai_transport_rules_current.json",
     "wai_transport_rules_rev73.json",
+    "wai_transport_rules_rev74.json",
     "wai_hotel_map_current.json",
     "wai_hotel_map_rev51.json",
     "wai_hotel_map_rev52.json",

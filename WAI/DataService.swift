@@ -30,19 +30,19 @@ final class DataService: ObservableObject {
     @Published private(set) var stations: [Station] = []
     @Published private(set) var sourceInfo = OperationalDataSourceInfo(
         kind: .bundled,
-        document: "FO/CP/CRS Nº141 REV73 13JUL26",
-        revision: "REV73",
-        date: "2026-07-13",
+        document: "FO/CP/CRS Nº141 REV74 20JUL26",
+        revision: "REV74",
+        date: "2026-07-20",
         loadedAt: nil
     )
 
-    private static let bundledResourceName = "wai_transport_rules_rev73"
+    private static let bundledResourceName = "wai_transport_rules_rev74"
     private static let cacheFileName =
         WAILegacyOperationalCacheFiles.transportRules
     private static let bundledFallbackSource = OperationalDataDocumentSource(
-        document: "FO/CP/CRS Nº141 REV73 13JUL26",
-        revision: "REV73",
-        date: "2026-07-13"
+        document: "FO/CP/CRS Nº141 REV74 20JUL26",
+        revision: "REV74",
+        date: "2026-07-20"
     )
     private let mode: OperationalDataServiceMode
 

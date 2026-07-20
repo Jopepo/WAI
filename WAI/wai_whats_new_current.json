@@ -7,6 +7,14 @@
   "maxVisibleItems": 10,
   "items": [
     {
+      "id": "rev74-ptp-transport-update",
+      "title": "Transport Times updated",
+      "detail": "Transport rules updated to FO/CP/CRS Nº141 REV74 · 20 Jul 2026. PTP transport time is now 60 minutes.",
+      "priority": "medium",
+      "category": "transport",
+      "documentRevision": "REV74"
+    },
+    {
       "id": "rev52-hotel-document",
       "title": "Hotel Map updated",
       "detail": "Hotel data updated to FO/CP/CRS Nº140 REV52 · 20 Jul 2026. FRA now uses Leonardo Hotel Mainz and PTP has been added.",
