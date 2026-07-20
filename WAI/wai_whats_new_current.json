@@ -2,10 +2,18 @@
   "source": {
     "document": "WAI What's New",
     "revision": "v2.2",
-    "date": "2026-07-13"
+    "date": "2026-07-20"
   },
   "maxVisibleItems": 10,
   "items": [
+    {
+      "id": "rev52-hotel-document",
+      "title": "Hotel Map updated",
+      "detail": "Hotel data updated to FO/CP/CRS Nº140 REV52 · 20 Jul 2026. FRA now uses Leonardo Hotel Mainz and PTP has been added.",
+      "priority": "medium",
+      "category": "hotel",
+      "documentRevision": "REV52"
+    },
     {
       "id": "rev73-cwb-update",
       "title": "CWB transport time updated",

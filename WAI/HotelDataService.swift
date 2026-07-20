@@ -75,18 +75,18 @@ final class HotelDataService: ObservableObject {
     @Published private(set) var document: HotelDocument?
     @Published private(set) var sourceInfo = OperationalDataSourceInfo(
         kind: .bundled,
-        document: "FO/CP/CRS Nº140 REV51 29JUN26",
-        revision: "REV51",
-        date: "2026-06-29",
+        document: "FO/CP/CRS Nº140 REV52 20JUL26",
+        revision: "REV52",
+        date: "2026-07-20",
         loadedAt: nil
     )
 
-    private static let bundledResourceName = "wai_hotel_map_rev51"
+    private static let bundledResourceName = "wai_hotel_map_rev52"
     private static let cacheFileName = WAILegacyOperationalCacheFiles.hotelMap
     private static let bundledFallbackSource = OperationalDataDocumentSource(
-        document: "FO/CP/CRS Nº140 REV51 29JUN26",
-        revision: "REV51",
-        date: "2026-06-29"
+        document: "FO/CP/CRS Nº140 REV52 20JUL26",
+        revision: "REV52",
+        date: "2026-07-20"
     )
     private let mode: OperationalDataServiceMode
 

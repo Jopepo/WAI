@@ -10,7 +10,7 @@ final class WhatsNewDataService: ObservableObject {
         kind: .bundled,
         document: "WAI What's New",
         revision: "v2.2",
-        date: "2026-07-07",
+        date: "2026-07-20",
         loadedAt: nil
     )
 
@@ -19,7 +19,7 @@ final class WhatsNewDataService: ObservableObject {
     private static let bundledFallbackSource = OperationalDataDocumentSource(
         document: "WAI What's New",
         revision: "v2.2",
-        date: "2026-07-07"
+        date: "2026-07-20"
     )
     private let mode: OperationalDataServiceMode
 

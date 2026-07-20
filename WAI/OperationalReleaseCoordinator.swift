@@ -49,7 +49,7 @@ struct BundledOperationalReleaseProvider: BundledOperationalReleaseProviding {
     }
 
     func load() throws -> OperationalReleasePackage {
-        let hotel = try data(named: "wai_hotel_map_rev51")
+        let hotel = try data(named: "wai_hotel_map_rev52")
         let transport = try data(named: "wai_transport_rules_rev73")
         let whatsNew = try data(named: "wai_whats_new_current")
 

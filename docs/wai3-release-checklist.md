@@ -22,7 +22,7 @@ item below is complete.
 
 - [x] Secure mode is enabled only by the WAI 3 Info configuration.
 - [x] WAI 3 is versioned separately as `3.0` with a build number above 16.
-- [x] All five legacy operational JSON files are excluded by Xcode before the
+- [x] All six bundled operational JSON files are excluded by Xcode before the
   app is signed.
 - [x] Public GitHub operational URLs are absent from the WAI 3 Info.plist and
   compiled app bundle.
@@ -73,7 +73,7 @@ item below is complete.
 - [ ] The migrations have been executed and inspected on staging PostgreSQL.
   Type-check and run the Edge Function in its Deno runtime before completing
   this release gate.
-- [ ] Publish a staging release from the current REV73/REV51 source documents.
+- [ ] Publish a staging release from the current REV73/REV52 source documents.
 - [ ] Test a valid update, interrupted download, invalid hash, invalid schema,
   rollback, oversized response, offline start, and recovery after connectivity.
 
