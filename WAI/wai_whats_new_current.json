@@ -2,10 +2,18 @@
   "source": {
     "document": "WAI What's New",
     "revision": "v2.2",
-    "date": "2026-07-20"
+    "date": "2026-07-23"
   },
   "maxVisibleItems": 10,
   "items": [
+    {
+      "id": "rev74-source-reconciliation",
+      "title": "Transport rules reconciled",
+      "detail": "REV74 was checked against the complete source. GIG now uses the conservative 110-minute maximum pending local coordination; OPO and ORD no longer treat public holidays as weekends; airport-transfer labels and operational notes were restored.",
+      "priority": "high",
+      "category": "transport",
+      "documentRevision": "REV74"
+    },
     {
       "id": "rev74-ptp-transport-update",
       "title": "Transport Times updated",
