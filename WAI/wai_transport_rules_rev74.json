@@ -79,6 +79,7 @@
       "summerUtcOffset": "+02:00",
       "defaultRule": {
         "type": "fixed",
+        "label": "On foot",
         "transportMinutes": 25
       },
       "alternatives": []
@@ -371,9 +372,9 @@
       "standardUtcOffset": "-03:00",
       "summerUtcOffset": "-03:00",
       "defaultRule": {
-        "type": "range",
-        "minTransportMinutes": 0,
-        "maxTransportMinutes": 110
+        "type": "fixed",
+        "label": "Maximum; coordinate locally",
+        "transportMinutes": 110
       },
       "alternatives": []
     },
@@ -408,7 +409,7 @@
           "transportMinutes": 100
         },
         {
-          "label": "Specific locally coordinated Hotel-Airport transfer",
+          "label": "Hotel-Airport maximum; coordinate locally",
           "transportMinutes": 100
         }
       ],
@@ -524,7 +525,12 @@
         "type": "fixed",
         "transportMinutes": 40
       },
-      "alternatives": []
+      "alternatives": [
+        {
+          "label": "LHR to LGW airport transfer",
+          "transportMinutes": 70
+        }
+      ]
     },
     {
       "iata": "LGW",
@@ -538,7 +544,12 @@
         "type": "fixed",
         "transportMinutes": 15
       },
-      "alternatives": []
+      "alternatives": [
+        {
+          "label": "LGW to LHR airport transfer",
+          "transportMinutes": 70
+        }
+      ]
     },
     {
       "iata": "LIS",
@@ -664,7 +675,12 @@
         "type": "fixed",
         "transportMinutes": 60
       },
-      "alternatives": []
+      "alternatives": [
+        {
+          "label": "MXP to LIN airport transfer",
+          "transportMinutes": 60
+        }
+      ]
     },
     {
       "iata": "NAT",
@@ -717,11 +733,6 @@
             "label": "Weekend",
             "appliesOnWeekends": true,
             "transportMinutes": 30
-          },
-          {
-            "label": "Public holiday",
-            "appliesOnPublicHolidays": true,
-            "transportMinutes": 30
           }
         ]
       },
@@ -730,21 +741,6 @@
           "label": "SEA Porto",
           "transportMinutes": 30
         }
-      ],
-      "holidays": [
-        { "date": "2026-01-01", "name": "New Year's Day" },
-        { "date": "2026-04-03", "name": "Good Friday" },
-        { "date": "2026-04-05", "name": "Easter Sunday" },
-        { "date": "2026-04-25", "name": "Freedom Day" },
-        { "date": "2026-05-01", "name": "Labour Day" },
-        { "date": "2026-06-04", "name": "Corpus Christi" },
-        { "date": "2026-06-10", "name": "Portugal Day" },
-        { "date": "2026-08-15", "name": "Assumption Day" },
-        { "date": "2026-10-05", "name": "Republic Day" },
-        { "date": "2026-11-01", "name": "All Saints' Day" },
-        { "date": "2026-12-01", "name": "Independence Restoration Day" },
-        { "date": "2026-12-08", "name": "Immaculate Conception" },
-        { "date": "2026-12-25", "name": "Christmas Day" }
       ]
     },
     {
@@ -764,28 +760,10 @@
             "label": "Weekend",
             "appliesOnWeekends": true,
             "transportMinutes": 90
-          },
-          {
-            "label": "Public holiday",
-            "appliesOnPublicHolidays": true,
-            "transportMinutes": 90
           }
         ]
       },
-      "alternatives": [],
-      "holidays": [
-        { "date": "2026-01-01", "name": "New Year's Day" },
-        { "date": "2026-01-19", "name": "Birthday of Martin Luther King, Jr." },
-        { "date": "2026-02-16", "name": "Washington's Birthday" },
-        { "date": "2026-05-25", "name": "Memorial Day" },
-        { "date": "2026-06-19", "name": "Juneteenth National Independence Day" },
-        { "date": "2026-07-03", "name": "Independence Day observed" },
-        { "date": "2026-09-07", "name": "Labor Day" },
-        { "date": "2026-10-12", "name": "Columbus Day" },
-        { "date": "2026-11-11", "name": "Veterans Day" },
-        { "date": "2026-11-26", "name": "Thanksgiving Day" },
-        { "date": "2026-12-25", "name": "Christmas Day" }
-      ]
+      "alternatives": []
     },
     {
       "iata": "ORY",
@@ -942,6 +920,7 @@
       "summerUtcOffset": "+02:00",
       "defaultRule": {
         "type": "fixed",
+        "label": "TAP Express operated by TAP aircraft",
         "transportMinutes": 15
       },
       "alternatives": []

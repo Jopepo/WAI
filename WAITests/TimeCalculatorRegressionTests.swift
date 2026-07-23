@@ -5,11 +5,11 @@ import Testing
 struct TimeCalculatorRegressionTests {
     private let defaultAlternativeTag = "__DEFAULT__"
 
-    @Test func rev73RulesRemainCalculableAcrossTheirFullSurface() throws {
+    @Test func rev74RulesRemainCalculableAcrossTheirFullSurface() throws {
         let document = try transportDocument()
 
-        #expect(document.source?.revision == "REV73")
-        #expect(document.stations.count == 61)
+        #expect(document.source?.revision == "REV74")
+        #expect(document.stations.count == 62)
 
         let representativeDates = [
             dateAnchor(year: 2026, month: 7, day: 7),
@@ -71,7 +71,7 @@ struct TimeCalculatorRegressionTests {
         }
     }
 
-    @Test func rev73TimeDependentBoundariesAreInclusive() throws {
+    @Test func rev74TimeDependentBoundariesAreInclusive() throws {
         let document = try transportDocument()
         let cases: [(
             station: String,
@@ -128,7 +128,7 @@ struct TimeCalculatorRegressionTests {
             (2026, 7, 7, 9, 0, 45, "Weekday 09:00–21:00"),
             (2026, 7, 7, 8, 59, 30, "Night 21:01–08:59"),
             (2026, 7, 11, 12, 0, 30, "Weekend"),
-            (2026, 6, 10, 12, 0, 30, "Public holiday")
+            (2026, 6, 10, 12, 0, 45, "Weekday 09:00–21:00")
         ]
 
         for item in cases {
@@ -151,6 +151,60 @@ struct TimeCalculatorRegressionTests {
             #expect(details.maximumTransportMinutes == item.transport)
             #expect(details.appliedRuleLabel == item.label)
         }
+    }
+
+    @Test func chicagoConditionsUseWeekendOnly() throws {
+        let document = try transportDocument()
+        let ord = try station("ORD", in: document)
+        let cases: [(day: Int, transport: Int, label: String)] = [
+            (3, 120, "Weekday"),
+            (4, 90, "Weekend")
+        ]
+
+        for item in cases {
+            let departure = try localDate(
+                year: 2026,
+                month: 7,
+                day: item.day,
+                hour: 12,
+                minute: 0,
+                timeZoneIdentifier: ord.timeZone
+            )
+            let details = try #require(TimeCalculator.calculateDetails(
+                departure: departure,
+                station: ord,
+                selectedAlternative: defaultAlternativeTag,
+                defaultAlternativeTag: defaultAlternativeTag,
+                stationHolidays: ord.holidays ?? []
+            ))
+
+            #expect(details.maximumTransportMinutes == item.transport)
+            #expect(details.appliedRuleLabel == item.label)
+        }
+    }
+
+    @Test func gigUsesConservativeMaximumPendingLocalCoordination() throws {
+        let document = try transportDocument()
+        let gig = try station("GIG", in: document)
+        let departure = try localDate(
+            year: 2026,
+            month: 7,
+            day: 7,
+            hour: 12,
+            minute: 0,
+            timeZoneIdentifier: gig.timeZone
+        )
+
+        let details = try #require(TimeCalculator.calculateDetails(
+            departure: departure,
+            station: gig,
+            selectedAlternative: defaultAlternativeTag,
+            defaultAlternativeTag: defaultAlternativeTag
+        ))
+
+        #expect(details.minimumTransportMinutes == 110)
+        #expect(details.maximumTransportMinutes == 110)
+        #expect(details.appliedRuleLabel == "Maximum; coordinate locally")
     }
 
     @Test func alternativeOverridesDefaultAndConditionalRules() throws {

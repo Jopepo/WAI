@@ -33,7 +33,7 @@ struct TimeCalculatorTests {
         #expect(result.appliedRuleLabel == "Night 21:00–06:00")
     }
 
-    @Test func gigRangeRule() throws {
+    @Test func gigUsesConservativeMaximum() throws {
         let result = try #require(calculate(
             station: Fixtures.gig,
             hour: 12,
@@ -41,10 +41,10 @@ struct TimeCalculatorTests {
             date: utcDate(year: 2026, month: 7, day: 7)
         ))
 
-        #expect(result.transportTime == "up to 110 min")
-        #expect(result.pickup == "06:10 - 08:00 GIG (10:10 - 12:00 LIS)")
-        #expect(result.wakeup == "05:10 - 07:00 GIG (09:10 - 11:00 LIS)")
-        #expect(result.appliedRuleLabel == nil)
+        #expect(result.transportTime == "110 min")
+        #expect(result.pickup == "06:10 GIG (10:10 LIS)")
+        #expect(result.wakeup == "05:10 GIG (09:10 LIS)")
+        #expect(result.appliedRuleLabel == "Maximum; coordinate locally")
     }
 
     @Test func gruWeekdayRule() throws {
@@ -198,11 +198,11 @@ private enum Fixtures {
         standardUtcOffset: "-03:00",
         summerUtcOffset: "-03:00",
         defaultRule: TransportRule(
-            type: "range",
-            label: nil,
-            transportMinutes: nil,
-            minTransportMinutes: 0,
-            maxTransportMinutes: 110,
+            type: "fixed",
+            label: "Maximum; coordinate locally",
+            transportMinutes: 110,
+            minTransportMinutes: nil,
+            maxTransportMinutes: nil,
             rules: nil,
             conditions: nil
         ),

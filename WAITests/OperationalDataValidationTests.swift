@@ -10,21 +10,29 @@ struct OperationalDataValidationTests {
         #expect(document.isValid)
     }
 
-    @Test func rev73UsesUpdatedCWBTransportTime() throws {
+    @Test func rev74ContainsCurrentTransportChanges() throws {
         let data = try bundledData(named: "wai_transport_rules_current")
         let document = try JSONDecoder().decode(StationData.self, from: data)
         let cwb = try #require(document.stations.first { $0.iata == "CWB" })
+        let ptp = try #require(document.stations.first { $0.iata == "PTP" })
 
-        #expect(document.source?.revision == "REV73")
+        #expect(document.source?.revision == "REV74")
         #expect(cwb.defaultRule.type == "fixed")
         #expect(cwb.defaultRule.transportMinutes == 50)
+        #expect(ptp.icao == "TFFR")
+        #expect(ptp.defaultRule.transportMinutes == 60)
     }
 
     @Test func bundledCurrentHotelDataIsValid() throws {
         let data = try bundledData(named: "wai_hotel_map_current")
         let document = try JSONDecoder().decode(HotelDocument.self, from: data)
+        let fra = try #require(document.hotels.first { $0.iata == "FRA" })
+        let ptp = try #require(document.hotels.first { $0.iata == "PTP" })
 
         #expect(document.isValid)
+        #expect(document.revision == "REV52")
+        #expect(fra.name == "LEONARDO HOTEL MAINZ")
+        #expect(ptp.name == "LA CRÉOLE BEACH HOTEL & SPA")
     }
 
     @Test func bundledCurrentWhatsNewDataIsValid() throws {
