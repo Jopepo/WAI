@@ -35,6 +35,19 @@ struct OperationalDataValidationTests {
         #expect(ptp.name == "LA CRÉOLE BEACH HOTEL & SPA")
     }
 
+    @Test func natUsesCommercialAirportICAOAcrossCurrentDatasets() throws {
+        let transportData = try bundledData(named: "wai_transport_rules_current")
+        let transportDocument = try JSONDecoder().decode(StationData.self, from: transportData)
+        let hotelData = try bundledData(named: "wai_hotel_map_current")
+        let hotelDocument = try JSONDecoder().decode(HotelDocument.self, from: hotelData)
+        let transportNAT = try #require(transportDocument.stations.first { $0.iata == "NAT" })
+        let hotelNAT = try #require(hotelDocument.hotels.first { $0.iata == "NAT" })
+
+        #expect(transportNAT.icao == "SBSG")
+        #expect(hotelNAT.icao == "SBSG")
+        #expect(transportNAT.icao == hotelNAT.icao)
+    }
+
     @Test func bundledCurrentWhatsNewDataIsValid() throws {
         let data = try bundledData(named: "wai_whats_new_current")
         let document = try JSONDecoder().decode(WhatsNewDocument.self, from: data)

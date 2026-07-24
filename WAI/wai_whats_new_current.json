@@ -2,10 +2,18 @@
   "source": {
     "document": "WAI What's New",
     "revision": "v2.2",
-    "date": "2026-07-23"
+    "date": "2026-07-24"
   },
   "maxVisibleItems": 10,
   "items": [
+    {
+      "id": "nat-icao-correction",
+      "title": "Natal airport identifier corrected",
+      "detail": "NAT now consistently uses SBSG, the official ICAO identifier for Governador Aluízio Alves Airport.",
+      "priority": "medium",
+      "category": "transport",
+      "documentRevision": "REV74"
+    },
     {
       "id": "rev74-source-reconciliation",
       "title": "Transport rules reconciled",
